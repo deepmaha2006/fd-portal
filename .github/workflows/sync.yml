@@ -1,0 +1,30 @@
+name: Sync to Mirror
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Skip if mirror already has this commit
+        id: check
+        run: |
+          REMOTE_SHA=$(git ls-remote "https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/stutiagrawal255-prog/fd-portal.git" refs/heads/main 2>/dev/null | cut -f1)
+          echo "mirror=$REMOTE_SHA current=${{ github.sha }}"
+          if [ "$REMOTE_SHA" = "${{ github.sha }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push to stutiagrawal255-prog/fd-portal
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          git remote add mirror "https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/stutiagrawal255-prog/fd-portal.git"
+          git push mirror main --force
