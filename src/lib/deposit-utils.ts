@@ -1,5 +1,4 @@
 import { addDays, differenceInDays, format, isPast, isToday } from "date-fns";
-import type { Decimal } from "@prisma/client/runtime/library";
 import type { DepositStatus } from "@prisma/client";
 
 // ─── Interest Calculation ─────────────────────────────────────────────────────
@@ -121,7 +120,7 @@ export function sanitizeCsvField(value: string | null | undefined): string {
 // ─── Currency Formatting ─────────────────────────────────────────────────────
 
 export function formatCurrency(
-  amount: Decimal | number | string | null | undefined,
+  amount: number | string | null | undefined,
   currency = "INR"
 ): string {
   if (amount === null || amount === undefined) return "—";

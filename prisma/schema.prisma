@@ -1,13 +1,13 @@
 // Prisma schema for FD/Security Deposit Management Portal
-// Database: PostgreSQL
-// Generated with: prisma generate
+// Database: MongoDB Atlas
+// After schema changes run: npx prisma db push
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -30,11 +30,11 @@ enum UserStatus {
 }
 
 enum DepositType {
-  FIXED_DEPOSIT        // Standard interest-bearing FD
-  SECURITY_DEPOSIT     // Performance/bid security
-  BANK_GUARANTEE       // BG issued by bank
-  EARNEST_MONEY        // EMD for tenders
-  LEASE_DEPOSIT        // Lease/rental security
+  FIXED_DEPOSIT
+  SECURITY_DEPOSIT
+  BANK_GUARANTEE
+  EARNEST_MONEY
+  LEASE_DEPOSIT
   OTHER
 }
 
@@ -43,7 +43,7 @@ enum DepositStatus {
   PENDING_REVIEW
   APPROVED
   ACTIVE
-  MATURING_SOON       // Within configurable threshold (e.g. 30 days)
+  MATURING_SOON
   MATURED
   RENEWAL_PENDING
   RENEWED
@@ -140,30 +140,29 @@ enum ApprovalAction {
 // ─── Users & Auth ─────────────────────────────────────────────────────────────
 
 model User {
-  id                   String    @id @default(cuid())
-  email                String    @unique
+  id                   String     @id @default(cuid()) @map("_id")
+  email                String     @unique
   emailVerified        DateTime?
   name                 String
   hashedPassword       String?
-  role                 UserRole  @default(FINANCE_OFFICER)
+  role                 UserRole   @default(FINANCE_OFFICER)
   status               UserStatus @default(ACTIVE)
   department           String?
-  mfaEnabled           Boolean   @default(false)
-  mfaSecret            String?   // encrypted TOTP secret
-  failedLoginAttempts  Int       @default(0)
+  mfaEnabled           Boolean    @default(false)
+  mfaSecret            String?
+  failedLoginAttempts  Int        @default(0)
   lockedUntil          DateTime?
   lastLoginAt          DateTime?
   lastLoginIp          String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
   createdById          String?
 
-  // Relations
   sessions             Session[]
   accounts             Account[]
-  depositsCreated      Deposit[]  @relation("DepositCreatedBy")
-  depositsOwned        Deposit[]  @relation("DepositOwner")
-  depositsApproved     Deposit[]  @relation("DepositApprovedBy")
+  depositsCreated      Deposit[]         @relation("DepositCreatedBy")
+  depositsOwned        Deposit[]         @relation("DepositOwner")
+  depositsApproved     Deposit[]         @relation("DepositApprovedBy")
   approvalActions      ApprovalRequest[] @relation("ApprovalActor")
   auditLogs            AuditLog[]
   passwordResetTokens  PasswordResetToken[]
@@ -175,7 +174,7 @@ model User {
 }
 
 model Account {
-  id                String  @id @default(cuid())
+  id                String  @id @default(cuid()) @map("_id")
   userId            String
   type              String
   provider          String
@@ -193,7 +192,7 @@ model Account {
 }
 
 model Session {
-  id           String   @id @default(cuid())
+  id           String   @id @default(cuid()) @map("_id")
   sessionToken String   @unique
   userId       String
   expires      DateTime
@@ -205,6 +204,7 @@ model Session {
 }
 
 model VerificationToken {
+  id         String   @id @default(cuid()) @map("_id")
   identifier String
   token      String   @unique
   expires    DateTime
@@ -213,13 +213,13 @@ model VerificationToken {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid()) @map("_id")
   userId    String
-  token     String   @unique
+  token     String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([userId])
@@ -228,55 +228,55 @@ model PasswordResetToken {
 // ─── Reference Data ───────────────────────────────────────────────────────────
 
 model Bank {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  code      String?  @unique
+  id        String       @id @default(cuid()) @map("_id")
+  name      String       @unique
+  code      String?      @unique
   branches  BankBranch[]
   deposits  Deposit[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@index([name])
 }
 
 model BankBranch {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid()) @map("_id")
   bankId    String
   name      String
   ifsc      String?
   address   String?
   city      String?
-  bank      Bank     @relation(fields: [bankId], references: [id])
+  bank      Bank      @relation(fields: [bankId], references: [id])
   deposits  Deposit[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@unique([bankId, name])
   @@index([bankId])
 }
 
 model Beneficiary {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid()) @map("_id")
   name      String
-  type      String?  // vendor, contractor, govt, individual, etc.
-  panNumber String?  // masked in UI
+  type      String?
+  panNumber String?
   gstNumber String?
   address   String?
   contact   String?
   email     String?
   deposits  Deposit[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([name])
 }
 
 model Department {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  code      String?  @unique
+  id        String    @id @default(cuid()) @map("_id")
+  name      String    @unique
+  code      String?   @unique
   deposits  Deposit[]
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([name])
 }
@@ -284,64 +284,56 @@ model Department {
 // ─── Core Deposit Model ───────────────────────────────────────────────────────
 
 model Deposit {
-  id                  String        @id @default(cuid())
-  referenceNumber     String        @unique  // internal: FDP-2024-0001
-  certificateNumber   String?       // bank-issued FDR/certificate number
+  id                  String        @id @default(cuid()) @map("_id")
+  referenceNumber     String        @unique
+  certificateNumber   String?
   depositType         DepositType   @default(FIXED_DEPOSIT)
   status              DepositStatus @default(DRAFT)
 
-  // Bank & account
   bankId              String?
   branchId            String?
-  accountNumber       String?       // stored encrypted / masked in display
+  accountNumber       String?
   bank                Bank?         @relation(fields: [bankId], references: [id])
   branch              BankBranch?   @relation(fields: [branchId], references: [id])
 
-  // Parties
   beneficiaryId       String?
   beneficiary         Beneficiary?  @relation(fields: [beneficiaryId], references: [id])
   issuingOrganization String?
-  vendorReference     String?       // linked contract / tender / project
+  vendorReference     String?
   contractNumber      String?
 
-  // Financials (DECIMAL for precision — stored as strings in Prisma for JS big number safety)
-  principalAmount     Decimal       @db.Decimal(20, 2)
+  // Float replaces Decimal (MongoDB Atlas does not support Prisma Decimal type)
+  principalAmount     Float
   currency            String        @default("INR")
-  interestRate        Decimal?      @db.Decimal(8, 4)
-  maturityAmount      Decimal?      @db.Decimal(20, 2)
+  interestRate        Float?
+  maturityAmount      Float?
 
-  // Dates
-  issueDate           DateTime      @db.Date
-  maturityDate        DateTime?     @db.Date
-  expiryDate          DateTime?     @db.Date
-  renewalDate         DateTime?     @db.Date
-  releaseDate         DateTime?     @db.Date
+  issueDate           DateTime
+  maturityDate        DateTime?
+  expiryDate          DateTime?
+  renewalDate         DateTime?
+  releaseDate         DateTime?
 
-  // Ownership
   departmentId        String?
   department          Department?   @relation(fields: [departmentId], references: [id])
   ownerId             String?
   owner               User?         @relation("DepositOwner", fields: [ownerId], references: [id])
 
-  // Approval
   approvedById        String?
   approvedAt          DateTime?
   approvedBy          User?         @relation("DepositApprovedBy", fields: [approvedById], references: [id])
 
-  // Meta
   isRenewalEligible   Boolean       @default(true)
-  renewedFromId       String?       // if this FD was renewed from another
-  renewedToId         String?       // if this FD was renewed into another
+  renewedFromId       String?
+  renewedToId         String?
   notes               String?
   tags                String[]      @default([])
 
-  // Audit fields
   createdById         String?
   createdBy           User?         @relation("DepositCreatedBy", fields: [createdById], references: [id])
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  // Related
   documents           Document[]
   lifecycleEvents     LifecycleEvent[]
   approvalRequests    ApprovalRequest[]
@@ -352,34 +344,32 @@ model Deposit {
   @@index([status])
   @@index([depositType])
   @@index([maturityDate])
-  @@index([expiryDate])
   @@index([bankId])
   @@index([departmentId])
   @@index([ownerId])
   @@index([referenceNumber])
-  @@index([certificateNumber])
   @@index([createdAt])
 }
 
 // ─── Lifecycle & Approvals ────────────────────────────────────────────────────
 
 model LifecycleEvent {
-  id          String        @id @default(cuid())
-  depositId   String
-  deposit     Deposit       @relation(fields: [depositId], references: [id])
-  fromStatus  DepositStatus?
-  toStatus    DepositStatus
-  actorId     String?
-  notes       String?
-  metadata    Json?
-  occurredAt  DateTime      @default(now())
+  id         String        @id @default(cuid()) @map("_id")
+  depositId  String
+  deposit    Deposit       @relation(fields: [depositId], references: [id])
+  fromStatus DepositStatus?
+  toStatus   DepositStatus
+  actorId    String?
+  notes      String?
+  metadata   Json?
+  occurredAt DateTime      @default(now())
 
   @@index([depositId])
   @@index([occurredAt])
 }
 
 model ApprovalRequest {
-  id          String         @id @default(cuid())
+  id          String         @id @default(cuid()) @map("_id")
   depositId   String
   deposit     Deposit        @relation(fields: [depositId], references: [id])
   requestedBy String?
@@ -396,19 +386,19 @@ model ApprovalRequest {
 // ─── Documents ────────────────────────────────────────────────────────────────
 
 model Document {
-  id              String       @id @default(cuid())
-  depositId       String
-  deposit         Deposit      @relation(fields: [depositId], references: [id])
-  documentType    DocumentType @default(OTHER)
-  originalName    String       // sanitized display name
-  storagePath     String       // opaque server-generated key
-  mimeType        String
-  sizeBytes       Int
-  checksumSha256  String?
-  uploadedById    String?
-  uploadedAt      DateTime     @default(now())
-  isArchived      Boolean      @default(false)
-  archivedAt      DateTime?
+  id             String       @id @default(cuid()) @map("_id")
+  depositId      String
+  deposit        Deposit      @relation(fields: [depositId], references: [id])
+  documentType   DocumentType @default(OTHER)
+  originalName   String
+  storagePath    String
+  mimeType       String
+  sizeBytes      Int
+  checksumSha256 String?
+  uploadedById   String?
+  uploadedAt     DateTime     @default(now())
+  isArchived     Boolean      @default(false)
+  archivedAt     DateTime?
 
   @@index([depositId])
   @@index([documentType])
@@ -417,14 +407,14 @@ model Document {
 // ─── Reminder & Notification ──────────────────────────────────────────────────
 
 model ReminderSchedule {
-  id            String            @id @default(cuid())
-  depositId     String
-  deposit       Deposit           @relation(fields: [depositId], references: [id])
-  event         NotificationEvent
-  scheduledFor  DateTime
-  processedAt   DateTime?
-  idempotencyKey String           @unique  // prevents double-processing
-  createdAt     DateTime          @default(now())
+  id             String            @id @default(cuid()) @map("_id")
+  depositId      String
+  deposit        Deposit           @relation(fields: [depositId], references: [id])
+  event          NotificationEvent
+  scheduledFor   DateTime
+  processedAt    DateTime?
+  idempotencyKey String            @unique
+  createdAt      DateTime          @default(now())
 
   @@index([depositId])
   @@index([scheduledFor])
@@ -432,20 +422,20 @@ model ReminderSchedule {
 }
 
 model NotificationLog {
-  id              String             @id @default(cuid())
-  depositId       String?
-  deposit         Deposit?           @relation(fields: [depositId], references: [id])
-  event           NotificationEvent
-  recipientEmail  String
-  subject         String
-  status          NotificationStatus @default(PENDING)
-  providerMsgId   String?
-  attemptCount    Int                @default(0)
-  lastAttemptAt   DateTime?
-  sentAt          DateTime?
-  errorMessage    String?
-  idempotencyKey  String             @unique
-  createdAt       DateTime           @default(now())
+  id             String             @id @default(cuid()) @map("_id")
+  depositId      String?
+  deposit        Deposit?           @relation(fields: [depositId], references: [id])
+  event          NotificationEvent
+  recipientEmail String
+  subject        String
+  status         NotificationStatus @default(PENDING)
+  providerMsgId  String?
+  attemptCount   Int                @default(0)
+  lastAttemptAt  DateTime?
+  sentAt         DateTime?
+  errorMessage   String?
+  idempotencyKey String             @unique
+  createdAt      DateTime           @default(now())
 
   @@index([depositId])
   @@index([status])
@@ -453,7 +443,7 @@ model NotificationLog {
 }
 
 model NotificationPreference {
-  id        String            @id @default(cuid())
+  id        String            @id @default(cuid()) @map("_id")
   userId    String
   user      User              @relation(fields: [userId], references: [id])
   event     NotificationEvent
@@ -463,31 +453,30 @@ model NotificationPreference {
   @@unique([userId, event])
 }
 
-// Global reminder config (admin-configurable)
 model ReminderConfig {
-  id              String   @id @default(cuid())
-  daysBeforeEvent Int      @unique  // e.g. 90, 60, 30, 15, 7, 1, 0
+  id              String   @id @default(cuid()) @map("_id")
+  daysBeforeEvent Int      @unique
   isEnabled       Boolean  @default(true)
-  recipientEmails String[] @default([])  // global CC list
+  recipientEmails String[] @default([])
   updatedAt       DateTime @updatedAt
 }
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 
 model AuditLog {
-  id           String      @id @default(cuid())
-  actorId      String?
-  actor        User?       @relation(fields: [actorId], references: [id])
-  actorEmail   String?     // denormalized for retention after user deletion
-  action       AuditAction
-  targetType   String?     // "Deposit", "User", "Document", etc.
-  targetId     String?
-  deposit      Deposit?    @relation("DepositAuditLogs", fields: [targetId], references: [id])
-  outcome      String      @default("SUCCESS")  // SUCCESS | FAILURE
-  ipAddress    String?
-  userAgent    String?
-  metadata     Json?       // non-sensitive extra context
-  occurredAt   DateTime    @default(now())
+  id         String      @id @default(cuid()) @map("_id")
+  actorId    String?
+  actor      User?       @relation(fields: [actorId], references: [id])
+  actorEmail String?
+  action     AuditAction
+  targetType String?
+  targetId   String?
+  deposit    Deposit?    @relation("DepositAuditLogs", fields: [targetId], references: [id])
+  outcome    String      @default("SUCCESS")
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  occurredAt DateTime    @default(now())
 
   @@index([actorId])
   @@index([action])
@@ -499,11 +488,11 @@ model AuditLog {
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
 
 model RateLimit {
-  id         String   @id @default(cuid())
-  key        String   @unique  // IP:action or userId:action
-  count      Int      @default(1)
-  windowEnd  DateTime
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid()) @map("_id")
+  key       String   @unique
+  count     Int      @default(1)
+  windowEnd DateTime
+  updatedAt DateTime @updatedAt
 
   @@index([key])
   @@index([windowEnd])
@@ -512,7 +501,8 @@ model RateLimit {
 // ─── Application Settings ─────────────────────────────────────────────────────
 
 model AppSetting {
-  key       String   @id
+  id        String   @id @default(cuid()) @map("_id")
+  key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
 }
