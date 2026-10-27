@@ -168,7 +168,6 @@ model User {
   passwordResetTokens  PasswordResetToken[]
   notificationPrefs    NotificationPreference[]
 
-  @@index([email])
   @@index([status])
   @@index([role])
 }
@@ -221,7 +220,6 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([token])
   @@index([userId])
 }
 
@@ -235,8 +233,6 @@ model Bank {
   deposits  Deposit[]
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
-
-  @@index([name])
 }
 
 model BankBranch {
@@ -277,8 +273,6 @@ model Department {
   code      String?   @unique
   deposits  Deposit[]
   createdAt DateTime  @default(now())
-
-  @@index([name])
 }
 
 // ─── Core Deposit Model ───────────────────────────────────────────────────────
@@ -347,7 +341,6 @@ model Deposit {
   @@index([bankId])
   @@index([departmentId])
   @@index([ownerId])
-  @@index([referenceNumber])
   @@index([createdAt])
 }
 
@@ -494,7 +487,6 @@ model RateLimit {
   windowEnd DateTime
   updatedAt DateTime @updatedAt
 
-  @@index([key])
   @@index([windowEnd])
 }
 
