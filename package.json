@@ -21,7 +21,6 @@
     "audit:deps": "npm audit"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "^2.7.4",
     "@hookform/resolvers": "^3.9.1",
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-alert-dialog": "^1.1.4",
