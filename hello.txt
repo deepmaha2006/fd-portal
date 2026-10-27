@@ -1,0 +1,2 @@
+Hello! This file tests the bidirectional sync between deepmaha2006/fd-portal and stutiagrawal255-prog/fd-portal.
+If you can see this file in the stutiagrawal255-prog repo, the sync is working correctly.
