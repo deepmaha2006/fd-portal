@@ -65,9 +65,6 @@ export default async function SettingsPage() {
               <div key={s.id} className="flex items-start justify-between gap-4">
                 <div>
                   <div className="text-sm font-medium text-slate-700">{s.key}</div>
-                  {s.description && (
-                    <div className="text-xs text-slate-400">{s.description}</div>
-                  )}
                 </div>
                 <div className="font-mono text-sm text-slate-600 bg-slate-50 px-2 py-1 rounded">
                   {s.value}

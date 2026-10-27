@@ -2,13 +2,11 @@ import Link from "next/link";
 import { format, differenceInDays } from "date-fns";
 import { AlertTriangle, Clock, ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/deposit-utils";
-import type { Decimal } from "@prisma/client/runtime/library";
-
 interface Deposit {
   id: string;
   referenceNumber: string;
   depositType: string;
-  principalAmount: Decimal;
+  principalAmount: number;
   currency: string;
   maturityDate: Date | null;
   status: string;

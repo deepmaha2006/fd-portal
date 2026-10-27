@@ -12,7 +12,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { formatCurrency, getMaturityUrgency, daysUntilMaturity } from "@/lib/deposit-utils";
-import type { Decimal } from "@prisma/client/runtime/library";
 import type { DepositStatus, DepositType } from "@prisma/client";
 
 interface Deposit {
@@ -21,7 +20,7 @@ interface Deposit {
   certificateNumber: string | null;
   depositType: DepositType;
   status: DepositStatus;
-  principalAmount: Decimal;
+  principalAmount: number;
   currency: string;
   maturityDate: Date | null;
   bank: { name: string } | null;

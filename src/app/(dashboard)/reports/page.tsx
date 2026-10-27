@@ -15,45 +15,39 @@ export default async function ReportsPage() {
   const role = (session.user as any)?.role as UserRole;
   if (!hasPermission(role, "deposit:export")) redirect("/dashboard");
 
-  const [byStatus, byType, byBank, maturityBuckets] = await Promise.all([
-    // Status breakdown
-    prisma.deposit.groupBy({
-      by: ["status"],
-      _count: { id: true },
-      _sum: { principalAmount: true },
-    }),
-    // Type breakdown
-    prisma.deposit.groupBy({
-      by: ["depositType"],
-      _count: { id: true },
-      _sum: { principalAmount: true },
-    }),
-    // Bank-wise totals
+  const [byStatus, byType, byBank, maturityDeposits] = await Promise.all([
+    prisma.deposit.groupBy({ by: ["status"], _count: { id: true }, _sum: { principalAmount: true } }),
+    prisma.deposit.groupBy({ by: ["depositType"], _count: { id: true }, _sum: { principalAmount: true } }),
     prisma.deposit.groupBy({
       by: ["bankId"],
       _count: { id: true },
       _sum: { principalAmount: true },
       where: { bankId: { not: null } },
     }),
-    // Maturity aging buckets (next 90 days)
-    prisma.$queryRaw<Array<{ bucket: string; count: bigint; total: string }>>`
-      SELECT
-        CASE
-          WHEN maturity_date < NOW() THEN 'Overdue'
-          WHEN maturity_date <= NOW() + INTERVAL '7 days' THEN '0-7 days'
-          WHEN maturity_date <= NOW() + INTERVAL '30 days' THEN '8-30 days'
-          WHEN maturity_date <= NOW() + INTERVAL '90 days' THEN '31-90 days'
-          ELSE 'Beyond 90 days'
-        END AS bucket,
-        COUNT(*) AS count,
-        COALESCE(SUM(principal_amount), 0)::text AS total
-      FROM deposits
-      WHERE status NOT IN ('CANCELLED', 'CLOSED', 'RELEASED', 'FORFEITED')
-        AND maturity_date IS NOT NULL
-      GROUP BY 1
-      ORDER BY MIN(maturity_date)
-    `,
+    prisma.deposit.findMany({
+      where: { status: { notIn: ["CANCELLED", "RELEASED", "ARCHIVED"] }, maturityDate: { not: null } },
+      select: { maturityDate: true, principalAmount: true },
+    }),
   ]);
+
+  const now = new Date();
+  const d7 = new Date(now); d7.setDate(now.getDate() + 7);
+  const d30 = new Date(now); d30.setDate(now.getDate() + 30);
+  const d90 = new Date(now); d90.setDate(now.getDate() + 90);
+  const bucketOrder = ["Overdue", "0-7 days", "8-30 days", "31-90 days", "Beyond 90 days"];
+  const bucketMap = new Map<string, { count: number; total: number }>(
+    bucketOrder.map((b) => [b, { count: 0, total: 0 }])
+  );
+  for (const d of maturityDeposits) {
+    const md = d.maturityDate!;
+    const bucket = md < now ? "Overdue" : md <= d7 ? "0-7 days" : md <= d30 ? "8-30 days" : md <= d90 ? "31-90 days" : "Beyond 90 days";
+    const b = bucketMap.get(bucket)!;
+    b.count++;
+    b.total += d.principalAmount;
+  }
+  const maturityBuckets = bucketOrder
+    .map((bucket) => ({ bucket, ...bucketMap.get(bucket)! }))
+    .filter((b) => b.count > 0);
 
   const bankIds = byBank.map((b) => b.bankId!);
   const banks = await prisma.bank.findMany({
@@ -130,8 +124,8 @@ export default async function ReportsPage() {
             {maturityBuckets.map((row) => (
               <tr key={row.bucket}>
                 <td className="py-2 font-medium text-slate-700">{row.bucket}</td>
-                <td className="py-2 text-right text-slate-600">{Number(row.count)}</td>
-                <td className="py-2 text-right text-slate-600">{formatINR(Number(row.total))}</td>
+                <td className="py-2 text-right text-slate-600">{row.count}</td>
+                <td className="py-2 text-right text-slate-600">{formatINR(row.total)}</td>
               </tr>
             ))}
           </tbody>

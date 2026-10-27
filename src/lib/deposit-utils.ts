@@ -124,7 +124,7 @@ export function formatCurrency(
   currency = "INR"
 ): string {
   if (amount === null || amount === undefined) return "—";
-  const num = typeof amount === "object" ? Number(amount.toString()) : Number(amount);
+  const num = Number(amount);
   if (isNaN(num)) return "—";
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
