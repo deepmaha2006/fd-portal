@@ -23,6 +23,9 @@ storage/
 # testing
 coverage/
 
+# deployment scripts — contain live tokens, never commit
+scripts/deploy-live.ps1
+
 # misc
 .DS_Store
 *.pem
