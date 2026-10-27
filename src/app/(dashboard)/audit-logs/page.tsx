@@ -1,7 +1,6 @@
 import { Metadata } from "next";
-import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { hasPermission } from "@/lib/permissions";
 import type { UserRole } from "@prisma/client";
@@ -13,7 +12,7 @@ export default async function AuditLogsPage({
 }: {
   searchParams: { page?: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const role = (session.user as any)?.role as UserRole;

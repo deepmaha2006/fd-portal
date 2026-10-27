@@ -1,6 +1,6 @@
 import { Metadata } from "next";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { unstable_cache } from "next/cache";
+import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { addDays } from "date-fns";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
@@ -10,7 +10,7 @@ import { StatusBreakdown } from "@/components/dashboard/status-breakdown";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-async function getDashboardData() {
+async function _getDashboardData() {
   const now = new Date();
   const thirtyDaysOut = addDays(now, 30);
   const ninetyDaysOut = addDays(now, 90);
@@ -103,8 +103,13 @@ async function getDashboardData() {
   };
 }
 
+// Cache dashboard stats for 60 seconds — data is global (not user-specific)
+const getDashboardData = unstable_cache(_getDashboardData, ["dashboard-stats"], {
+  revalidate: 60,
+});
+
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const data = await getDashboardData();
 
   return (

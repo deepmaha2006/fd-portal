@@ -1,7 +1,6 @@
 import { Metadata } from "next";
-import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { hasPermission } from "@/lib/permissions";
 import type { UserRole } from "@prisma/client";
@@ -9,7 +8,7 @@ import type { UserRole } from "@prisma/client";
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const role = (session.user as any)?.role as UserRole;

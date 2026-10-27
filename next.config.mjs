@@ -6,8 +6,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  poweredByHeader: false,
+  compress: true,
   experimental: {
     serverComponentsExternalPackages: ["@prisma/client", "bcryptjs"],
+    optimizePackageImports: ["lucide-react", "date-fns"],
   },
   webpack: (config) => {
     config.resolve.alias["@"] = path.join(__dirname, "src");

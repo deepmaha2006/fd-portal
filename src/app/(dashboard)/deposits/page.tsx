@@ -1,8 +1,7 @@
 import { Metadata } from "next";
-import { getServerSession } from "next-auth/next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { hasPermission } from "@/lib/permissions";
 import { DepositsTable } from "@/components/deposits/deposits-table";
@@ -23,7 +22,7 @@ export default async function DepositsPage({
     sortOrder?: string;
   };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const userRole = (session.user as any)?.role as UserRole;
