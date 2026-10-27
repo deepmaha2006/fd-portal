@@ -25,6 +25,9 @@ jobs:
 
       - name: Push to stutiagrawal255-prog/fd-portal
         if: steps.check.outputs.skip == 'false'
+        env:
+          MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
         run: |
-          git remote add mirror "https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/stutiagrawal255-prog/fd-portal.git"
+          git config --global --unset-all "http.https://github.com/.extraheader" || true
+          git remote add mirror "https://x-access-token:${MIRROR_TOKEN}@github.com/stutiagrawal255-prog/fd-portal.git"
           git push mirror main --force
