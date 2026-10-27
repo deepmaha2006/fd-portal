@@ -62,9 +62,7 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^11.0.3",
     "zod": "^3.23.8",
-    "zxcvbn": "^4.4.2"
-  },
-  "devDependencies": {
+    "zxcvbn": "^4.4.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.9.0",
     "@types/node-cron": "^3.0.11",
@@ -73,13 +71,15 @@
     "@types/react-dom": "^18.3.1",
     "@types/uuid": "^10.0.0",
     "@types/zxcvbn": "^4.4.4",
-    "@vitest/coverage-v8": "^2.1.8",
-    "dotenv": "^16.6.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.29",
     "prisma": "^5.22.0",
+    "typescript": "^5.6.3"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.8",
+    "dotenv": "^16.6.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
     "vitest": "^2.1.8"
   }
 }
