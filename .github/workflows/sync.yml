@@ -28,6 +28,6 @@ jobs:
         env:
           MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
         run: |
-          git config --global --unset-all "http.https://github.com/.extraheader" || true
+          git config --local --unset-all "http.https://github.com/.extraheader" || true
           git remote add mirror "https://x-access-token:${MIRROR_TOKEN}@github.com/stutiagrawal255-prog/fd-portal.git"
           git push mirror main --force
