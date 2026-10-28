@@ -72,7 +72,7 @@ Legend: ✅ Implemented + tested | ⚠️ Partial / manual step needed | ❌ Not
 | PENDING_VERIFICATION blocks login | ✅ | Pre-existing |
 | 30-min idle timeout for admin roles | ✅ | `adminIdleExpiry` in JWT at sign-in; session callback invalidates after 30 min |
 | Re-authentication for sensitive actions | ✅ | `src/lib/reauth.ts` — requireRecentAuth() on second-approve + role-change |
-| Client registration email verification | ⚠️ | `emailVerified` field exists; verification email not yet wired |
+| Client registration email verification | ✅ | Token generated at register, stored with 24h expiry; `GET /api/auth/verify-email` consumes it |
 | KYC review only from PENDING status | ✅ | `/api/kyc/[id]/review` checks status |
 | KYC reviewer ≠ account owner | ✅ | Check in KYC review route |
 | Seed script blocked in production | ✅ | `scripts/seed.ts` throws if `NODE_ENV=production` |
@@ -94,7 +94,7 @@ Legend: ✅ Implemented + tested | ⚠️ Partial / manual step needed | ❌ Not
 | CSRF (Origin check) helper | ✅ | `src/lib/csrf.ts` — wired into register, KYC, users, second-approve |
 | File upload: MIME allowlist | ✅ | TIFF + WEBP signatures added; null fallthrough now rejects unknown formats |
 | File upload: random storage names | ✅ | Pre-existing |
-| File upload: signed download URLs | ⚠️ | Not yet short-lived signed URLs |
+| File upload: signed download URLs | ✅ | `src/lib/signed-token.ts` HMAC-SHA256; `GET /api/documents/[id]/signed-url` issues 5-min token; download accepts token or session |
 | Audit log 403 denials | ✅ | `PERMISSION_DENIED` action in escalation paths |
 | Audit log all login/logout/MFA events | ✅ | `auth.ts` |
 | Dashboard alert for 5+ denials/user/hour | ✅ | `GET /api/admin/security-alerts` — application-level grouping, SUPER_ADMIN+ADMIN only |
