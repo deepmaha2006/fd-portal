@@ -5,8 +5,11 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getUserId, hasPermission, UnauthorizedError, ForbiddenError } from "@/lib/permissions";
-import { ok, created, handleApiError } from "@/lib/api-response";
+import { ok, created, handleApiError, tooManyRequests } from "@/lib/api-response";
 import { auditLog } from "@/lib/audit";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { checkCsrf, getClientIp } from "@/lib/csrf";
+import { env } from "@/lib/env";
 import type { UserRole } from "@prisma/client";
 
 const SubmitKycSchema = z.object({
@@ -51,12 +54,26 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const csrf = checkCsrf(req);
+    if (!csrf.ok) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
+
+    const ip = getClientIp(req);
+
     const session = await getServerSession(authOptions);
     if (!session) throw new UnauthorizedError();
 
     const userId = getUserId(session)!;
     const role = (session.user as any)?.role as UserRole;
     if (role !== "CLIENT") throw new ForbiddenError("Only clients can submit KYC verification");
+
+    const rl = await checkRateLimit(
+      `kyc:${userId}`,
+      env.RATE_LIMIT_KYC_MAX,
+      env.RATE_LIMIT_KYC_WINDOW_SECONDS
+    );
+    if (!rl.allowed) return tooManyRequests(rl.resetAt);
 
     const body = await req.json();
     const data = SubmitKycSchema.parse(body);

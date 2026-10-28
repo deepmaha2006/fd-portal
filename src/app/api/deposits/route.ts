@@ -8,6 +8,7 @@ import { auditLog } from "@/lib/audit";
 import {
   requirePermission,
   getUserId,
+  hasPermission,
   UnauthorizedError,
 } from "@/lib/permissions";
 import {
@@ -15,6 +16,7 @@ import {
   created,
   handleApiError,
 } from "@/lib/api-response";
+import type { UserRole } from "@prisma/client";
 import { generateReferenceNumber } from "@/lib/deposit-utils";
 import type { DepositType, DepositStatus } from "@prisma/client";
 
@@ -78,6 +80,9 @@ export async function GET(req: NextRequest) {
     if (!session) throw new UnauthorizedError();
     requirePermission(session, "deposit:read");
 
+    const role = (session.user as any)?.role as UserRole;
+    const isViewer = role === "VIEWER";
+
     const params = DepositQuerySchema.parse(
       Object.fromEntries(req.nextUrl.searchParams)
     );
@@ -140,8 +145,25 @@ export async function GET(req: NextRequest) {
       prisma.deposit.count({ where }),
     ]);
 
+    const sanitized = isViewer
+      ? deposits.map((d) => ({
+          id: d.id,
+          referenceNumber: d.referenceNumber,
+          depositType: d.depositType,
+          status: d.status,
+          principalAmount: d.principalAmount,
+          currency: d.currency,
+          interestRate: d.interestRate,
+          issueDate: d.issueDate,
+          maturityDate: d.maturityDate,
+          expiryDate: d.expiryDate,
+          bank: d.bank,
+          department: d.department,
+        }))
+      : deposits;
+
     return ok({
-      deposits,
+      deposits: sanitized,
       pagination: {
         page: params.page,
         limit: params.limit,

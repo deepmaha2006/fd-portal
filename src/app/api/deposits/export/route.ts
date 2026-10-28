@@ -10,6 +10,7 @@ import { requirePermission, getUserId, UnauthorizedError } from "@/lib/permissio
 import { handleApiError, tooManyRequests } from "@/lib/api-response";
 import { sanitizeCsvField, formatCurrency } from "@/lib/deposit-utils";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/csrf";
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
     requirePermission(session, "deposit:export");
 
     const actorId = getUserId(session)!;
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = getClientIp(req);
 
     // Rate limit exports (expensive)
     const rl = await checkRateLimit(`export:${actorId}`, 5, 3600); // 5 per hour

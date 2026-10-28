@@ -3,6 +3,10 @@
 import { config } from "dotenv";
 config();
 
+if (process.env.NODE_ENV === "production") {
+  throw new Error("Seed script must not run in production. Set NODE_ENV != production to proceed.");
+}
+
 import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { generateReferenceNumber } from "../src/lib/deposit-utils";

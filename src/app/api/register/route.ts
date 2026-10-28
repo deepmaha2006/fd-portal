@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { auditLog } from "@/lib/audit";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { checkCsrf, getClientIp } from "@/lib/csrf";
+import { env } from "@/lib/env";
+import { handleApiError, tooManyRequests } from "@/lib/api-response";
 
 const RegisterSchema = z.object({
   name: z.string().min(2).max(100).trim(),
@@ -22,6 +27,20 @@ const RegisterSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const csrf = checkCsrf(req);
+    if (!csrf.ok) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
+
+    const ip = getClientIp(req);
+
+    const rl = await checkRateLimit(
+      `register:${ip}`,
+      env.RATE_LIMIT_REGISTER_MAX,
+      env.RATE_LIMIT_REGISTER_WINDOW_SECONDS
+    );
+    if (!rl.allowed) return tooManyRequests(rl.resetAt);
+
     const body = await req.json();
     const data = RegisterSchema.parse(body);
 
@@ -37,11 +56,9 @@ export async function POST(req: NextRequest) {
     }
 
     const hashedPassword = await hash(data.password, 12);
-
-    // Combine org + department info into the `department` field
     const deptInfo = [data.organization, data.department].filter(Boolean).join(" — ");
 
-    await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         name: data.name,
         email: data.email,
@@ -52,8 +69,22 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    await auditLog({
+      action: "USER_CREATED",
+      actorId: user.id,
+      actorEmail: user.email,
+      targetType: "User",
+      targetId: user.id,
+      ipAddress: ip,
+      metadata: { role: "CLIENT", selfRegistered: true },
+    });
+
     return NextResponse.json(
-      { success: true, message: "Account created. You can now log in. Please complete KYC verification in your portal settings to enable payment features." },
+      {
+        success: true,
+        message:
+          "Account created. You can now log in. Please complete KYC verification in your portal settings to enable payment features.",
+      },
       { status: 201 }
     );
   } catch (err) {
@@ -63,10 +94,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    console.error("[register]", err);
-    return NextResponse.json(
-      { success: false, error: "Server error. Please try again later." },
-      { status: 500 }
-    );
+    return handleApiError(err);
   }
 }
