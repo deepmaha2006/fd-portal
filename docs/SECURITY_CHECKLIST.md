@@ -45,7 +45,7 @@ Legend: ✅ Implemented + tested | ⚠️ Partial / manual step needed | ❌ Not
 
 | Item | Status | Notes |
 |------|--------|-------|
-| FINANCE_OFFICER can only edit own deposits | ⚠️ | `deposit:update_own` permission exists; enforced at API level — needs wiring in PATCH route |
+| FINANCE_OFFICER can only edit own deposits | ✅ | deposits PATCH checks `existing.createdById === actorId` for FINANCE_OFFICER |
 | VIEWER responses strip doc links and PII | ✅ | deposits GET returns summary-only fields for VIEWER role |
 | CLIENT IDOR check on payment requests | ✅ | status route + payment-request [id] route |
 | Postgres RLS | N/A | MongoDB — no RLS support; application-level row security used instead |
@@ -98,7 +98,7 @@ Legend: ✅ Implemented + tested | ⚠️ Partial / manual step needed | ❌ Not
 | Audit log 403 denials | ✅ | `PERMISSION_DENIED` action in escalation paths |
 | Audit log all login/logout/MFA events | ✅ | `auth.ts` |
 | Dashboard alert for 5+ denials/user/hour | ❌ | Not implemented |
-| Encrypt PAN/account numbers at rest | ❌ | Not implemented; `MFA_ENCRYPTION_KEY` env var exists |
+| Encrypt PAN/account numbers at rest | ✅ | `src/lib/field-encrypt.ts` — AES-256-GCM; wired into deposit create/patch/GET |
 
 ## 8. UI
 
