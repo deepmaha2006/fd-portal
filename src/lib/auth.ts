@@ -7,10 +7,13 @@ import { auditLog } from "@/lib/audit";
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 15;
 
+// Roles that require TOTP MFA to be enforced
+const MFA_REQUIRED_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"]);
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 hours
+    maxAge: 8 * 60 * 60,
   },
   cookies: {
     sessionToken: {
@@ -131,7 +134,46 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // TODO: MFA verification if user.mfaEnabled
+        // MFA check: required for SUPER_ADMIN, ADMIN, FINANCE_MANAGER; optional for others
+        if (user.mfaEnabled || MFA_REQUIRED_ROLES.has(user.role)) {
+          if (!user.mfaSecret) {
+            // MFA required but not yet configured — block login for mandatory-MFA roles
+            if (MFA_REQUIRED_ROLES.has(user.role)) {
+              throw new Error("MfaNotConfigured");
+            }
+          } else {
+            if (!credentials.mfaCode) {
+              throw new Error("MfaRequired");
+            }
+
+            const { TOTP } = await import("otpauth");
+            const totp = new TOTP({
+              issuer: process.env.MFA_ISSUER ?? "FD Portal",
+              label: user.email,
+              secret: user.mfaSecret,
+            });
+
+            const delta = totp.validate({ token: credentials.mfaCode, window: 1 });
+            if (delta === null) {
+              await auditLog({
+                action: "MFA_CHALLENGE_FAILED",
+                actorId: user.id,
+                actorEmail: user.email,
+                outcome: "FAILURE",
+                ipAddress: ip,
+              });
+              throw new Error("MfaInvalid");
+            }
+
+            await auditLog({
+              action: "MFA_CHALLENGE_PASSED",
+              actorId: user.id,
+              actorEmail: user.email,
+              outcome: "SUCCESS",
+              ipAddress: ip,
+            });
+          }
+        }
 
         // Success — reset fail count
         await prisma.user.update({
@@ -159,6 +201,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           status: user.status,
+          tokenVersion: user.tokenVersion,
         } as any;
       },
     }),
@@ -168,12 +211,31 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = (user as any).role;
         token.id = user.id;
+        // Store the tokenVersion at sign-in time so we can detect revocation
+        token.tokenVersion = (user as any).tokenVersion ?? 0;
       }
       return token;
     },
     async session({ session, token }) {
+      if (!token.id) return session;
+
+      // Re-check tokenVersion on every session refresh to catch revoked tokens
+      const dbUser = await prisma.user.findUnique({
+        where: { id: token.id as string },
+        select: { tokenVersion: true, role: true, status: true },
+      });
+
+      // If user was deactivated, role changed, or password reset — invalidate session
+      if (
+        !dbUser ||
+        dbUser.status !== "ACTIVE" ||
+        dbUser.tokenVersion !== (token.tokenVersion as number)
+      ) {
+        return { ...session, user: undefined } as any;
+      }
+
       if (session.user) {
-        (session.user as any).role = token.role;
+        (session.user as any).role = dbUser.role; // always use DB role, not stale JWT
         (session.user as any).id = token.id;
       }
       return session;

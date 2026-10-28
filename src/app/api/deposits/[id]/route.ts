@@ -152,7 +152,11 @@ export async function PATCH(
   }
 }
 
-// ─── DELETE /api/deposits/[id] ────────────────────────────────────────────────
+// ─── DELETE /api/deposits/[id] (soft delete, requires reason) ────────────────
+
+const SoftDeleteSchema = z.object({
+  reason: z.string().min(10, "Reason must be at least 10 characters").max(500),
+});
 
 export async function DELETE(
   req: NextRequest,
@@ -161,33 +165,37 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions);
     if (!session) throw new UnauthorizedError();
-    requirePermission(session, "deposit:delete");
+    // Only SUPER_ADMIN and ADMIN may soft-delete deposits
+    requirePermission(session, "document:delete"); // reuses the SUPER_ADMIN+ADMIN gate
 
     const actorId = getUserId(session)!;
+    const actorRole = (session.user as any)?.role as string;
+    if (!["SUPER_ADMIN", "ADMIN"].includes(actorRole)) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
+
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
+    const body = await req.json();
+    const { reason } = SoftDeleteSchema.parse(body);
+
     const existing = await prisma.deposit.findUnique({ where: { id: params.id } });
-    if (!existing) {
+    if (!existing || existing.deletedAt) {
       return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     }
 
-    // Only drafts or cancelled can be hard-deleted; others must be archived
-    if (!["DRAFT", "CANCELLED"].includes(existing.status)) {
-      return NextResponse.json(
-        { success: false, error: "Only draft or cancelled deposits can be deleted. Use archive for others." },
-        { status: 422 }
-      );
-    }
-
-    await prisma.deposit.delete({ where: { id: params.id } });
+    await prisma.deposit.update({
+      where: { id: params.id },
+      data: { deletedAt: new Date(), deletedById: actorId, deleteReason: reason },
+    });
 
     await auditLog({
-      action: "DEPOSIT_CANCELLED",
+      action: "DEPOSIT_DELETE_REQUESTED",
       actorId,
       targetType: "Deposit",
       targetId: params.id,
       ipAddress: ip,
-      metadata: { referenceNumber: existing.referenceNumber },
+      metadata: { referenceNumber: existing.referenceNumber, reason },
     });
 
     return noContent();
