@@ -6,10 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Eye, EyeOff, UserPlus, Loader2, CheckCircle } from "lucide-react";
 
+// Phone is handled outside RHF (country code + number = two inputs, one value)
 const SignupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
   email: z.string().email("Enter a valid email address"),
-  phone: z.string().min(10, "Enter a valid phone number").max(15).optional().or(z.literal("")),
   organization: z.string().min(2, "Organization name required").max(100),
   department: z.string().max(100).optional().or(z.literal("")),
   password: z
@@ -30,10 +30,21 @@ type SignupData = z.infer<typeof SignupSchema>;
 
 const passwordRules = [
   { label: "At least 12 characters", test: (p: string) => p.length >= 12 },
-  { label: "Uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
-  { label: "Lowercase letter", test: (p: string) => /[a-z]/.test(p) },
-  { label: "Number", test: (p: string) => /[0-9]/.test(p) },
-  { label: "Special character", test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+  { label: "Uppercase letter",        test: (p: string) => /[A-Z]/.test(p) },
+  { label: "Lowercase letter",        test: (p: string) => /[a-z]/.test(p) },
+  { label: "Number",                  test: (p: string) => /[0-9]/.test(p) },
+  { label: "Special character",       test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+];
+
+const COUNTRY_CODES = [
+  { code: "+91",  name: "India",        digits: 10, regex: /^[6-9]\d{9}$/ },
+  { code: "+1",   name: "USA / Canada", digits: 10, regex: /^\d{10}$/ },
+  { code: "+44",  name: "UK",           digits: 10, regex: /^\d{10}$/ },
+  { code: "+61",  name: "Australia",    digits: 9,  regex: /^\d{9}$/ },
+  { code: "+971", name: "UAE",          digits: 9,  regex: /^\d{9}$/ },
+  { code: "+65",  name: "Singapore",    digits: 8,  regex: /^\d{8}$/ },
+  { code: "+49",  name: "Germany",      digits: 10, regex: /^\d{10,11}$/ },
+  { code: "+33",  name: "France",       digits: 9,  regex: /^\d{9}$/ },
 ];
 
 export function SignupForm() {
@@ -44,6 +55,13 @@ export function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // Phone state — managed outside RHF
+  const [countryCode, setCountryCode] = useState("+91");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+
+  const countryRule = COUNTRY_CODES.find((c) => c.code === countryCode) ?? COUNTRY_CODES[0];
+
   const {
     register,
     handleSubmit,
@@ -53,9 +71,38 @@ export function SignupForm() {
 
   const password = watch("password", "");
 
+  function handlePhoneInput(val: string) {
+    const digits = val.replace(/\D/g, "").slice(0, countryRule.digits);
+    setPhoneNumber(digits);
+    if (phoneError) setPhoneError("");
+  }
+
+  function handleCountryChange(code: string) {
+    setCountryCode(code);
+    setPhoneNumber("");
+    setPhoneError("");
+  }
+
+  function validatePhone(): boolean {
+    if (!phoneNumber) return true; // optional
+    if (!countryRule.regex.test(phoneNumber)) {
+      setPhoneError(
+        countryCode === "+91"
+          ? "India: 10 digits starting with 6, 7, 8 or 9"
+          : `${countryRule.name}: ${countryRule.digits} digits`
+      );
+      return false;
+    }
+    return true;
+  }
+
   const onSubmit = async (data: SignupData) => {
+    if (!validatePhone()) return;
+
     setIsLoading(true);
     setServerError(null);
+
+    const fullPhone = phoneNumber ? `${countryCode}${phoneNumber}` : undefined;
 
     try {
       const res = await fetch("/api/register", {
@@ -64,7 +111,7 @@ export function SignupForm() {
         body: JSON.stringify({
           name: data.name,
           email: data.email.toLowerCase().trim(),
-          phone: data.phone || undefined,
+          phone: fullPhone,
           organization: data.organization,
           department: data.department || undefined,
           password: data.password,
@@ -109,37 +156,23 @@ export function SignupForm() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
-            Full name <span className="text-red-500">*</span>
-          </label>
-          <input
-            {...register("name")}
-            id="name"
-            type="text"
-            autoComplete="name"
-            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Jane Smith"
-          />
-          {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
-        </div>
-        <div>
-          <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-1">
-            Phone
-          </label>
-          <input
-            {...register("phone")}
-            id="phone"
-            type="tel"
-            autoComplete="tel"
-            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="+91 98765 43210"
-          />
-          {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
-        </div>
+      {/* Full name */}
+      <div>
+        <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
+          Full name <span className="text-red-500">*</span>
+        </label>
+        <input
+          {...register("name")}
+          id="name"
+          type="text"
+          autoComplete="name"
+          className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Jane Smith"
+        />
+        {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
       </div>
 
+      {/* Email */}
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
           Work email <span className="text-red-500">*</span>
@@ -155,6 +188,46 @@ export function SignupForm() {
         {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
       </div>
 
+      {/* Phone — country code + strict digits */}
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          Phone <span className="text-slate-400 text-xs font-normal">(optional)</span>
+        </label>
+        <div className="flex gap-2">
+          <select
+            value={countryCode}
+            onChange={(e) => handleCountryChange(e.target.value)}
+            className="border border-slate-300 rounded-lg px-2 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+          >
+            {COUNTRY_CODES.map((c) => (
+              <option key={c.code} value={c.code}>{c.code} {c.name}</option>
+            ))}
+          </select>
+          <input
+            type="tel"
+            inputMode="numeric"
+            value={phoneNumber}
+            onChange={(e) => handlePhoneInput(e.target.value)}
+            onBlur={validatePhone}
+            placeholder={`${countryRule.digits} digits`}
+            maxLength={countryRule.digits}
+            className={`flex-1 border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+              phoneError ? "border-red-400 bg-red-50" : "border-slate-300"
+            }`}
+          />
+        </div>
+        {phoneError ? (
+          <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+        ) : (
+          <p className="mt-1 text-xs text-slate-400">
+            {countryCode === "+91"
+              ? "India: 10 digits starting with 6–9, numbers only"
+              : `${countryRule.name}: ${countryRule.digits} digits, numbers only`}
+          </p>
+        )}
+      </div>
+
+      {/* Organization + Department */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor="organization" className="block text-sm font-medium text-slate-700 mb-1">
@@ -183,6 +256,7 @@ export function SignupForm() {
         </div>
       </div>
 
+      {/* Password */}
       <div>
         <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
           Password <span className="text-red-500">*</span>
@@ -204,7 +278,6 @@ export function SignupForm() {
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
-        {/* Password strength indicators */}
         {password && (
           <div className="mt-2 grid grid-cols-2 gap-1">
             {passwordRules.map((rule) => (
@@ -218,6 +291,7 @@ export function SignupForm() {
         {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
       </div>
 
+      {/* Confirm password */}
       <div>
         <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-1">
           Confirm password <span className="text-red-500">*</span>

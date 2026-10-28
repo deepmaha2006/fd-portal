@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
         role: "CLIENT",
         status: "ACTIVE",
         department: deptInfo,
+        phone: data.phone ?? null,
         emailVerificationToken: verificationToken,
         emailVerificationTokenExpiry: tokenExpiry,
       },
