@@ -40,7 +40,7 @@ export default async function AdminRequestDetailPage({ params }: { params: { id:
   if (!session) redirect("/login");
 
   const role = (session.user as any)?.role as UserRole;
-  if (!hasPermission(role, "deposit:approve")) redirect("/dashboard");
+  if (!hasPermission(role, "payment_request:view_all")) redirect("/dashboard");
 
   const request = await prisma.paymentRequest.findUnique({
     where: { id: params.id },
@@ -101,7 +101,7 @@ export default async function AdminRequestDetailPage({ params }: { params: { id:
                 <PlusCircle size={13} /> Create Deposit
               </Link>
             )}
-            {!isTerminal && <AdminRequestActions requestId={request.id} currentStatus={request.status} />}
+            {!isTerminal && <AdminRequestActions requestId={request.id} currentStatus={request.status} userRole={role} />}
           </div>
         </div>
       </div>
@@ -129,6 +129,15 @@ export default async function AdminRequestDetailPage({ params }: { params: { id:
             <dl className="space-y-2 text-sm">
               <div><dt className="text-xs text-slate-500">Type</dt><dd className="text-slate-900 font-medium mt-0.5">{typeLabels[request.type]}</dd></div>
               {request.amount && <div><dt className="text-xs text-slate-500">Amount</dt><dd className="text-slate-900 font-medium mt-0.5">{request.currency} {request.amount.toLocaleString("en-IN")}</dd></div>}
+              {(request as any).durationMonths && (
+                <div>
+                  <dt className="text-xs text-slate-500">FD Duration</dt>
+                  <dd className="text-slate-900 font-medium mt-0.5">
+                    {(request as any).durationMonths} months
+                    {(request as any).durationMonths >= 12 ? ` (${((request as any).durationMonths / 12).toFixed(1).replace(/\.0$/, "")} yr${(request as any).durationMonths >= 24 ? "s" : ""})` : ""}
+                  </dd>
+                </div>
+              )}
               {request.bankName && <div><dt className="text-xs text-slate-500">Bank</dt><dd className="text-slate-900 mt-0.5">{request.bankName}</dd></div>}
               {request.accountNumber && <div><dt className="text-xs text-slate-500">Account / FD No.</dt><dd className="text-slate-900 mt-0.5 font-mono text-xs">{request.accountNumber}</dd></div>}
               <div><dt className="text-xs text-slate-500">Priority</dt><dd className="text-slate-900 mt-0.5">{request.urgency}</dd></div>

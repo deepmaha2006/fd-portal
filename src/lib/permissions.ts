@@ -16,14 +16,14 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
 // ─── Permission Definitions ───────────────────────────────────────────────────
 
 export const PERMISSIONS = {
-  // Deposits — FINANCE_OFFICER creates; FINANCE_MANAGER approves; SUPER_ADMIN final-approves high-value
-  "deposit:create": ["FINANCE_OFFICER"],
+  // Deposits
+  "deposit:create": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER"],
   "deposit:read": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER", "AUDITOR", "VIEWER"],
   "deposit:update_own": ["FINANCE_OFFICER"],
   "deposit:update": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER"],
   "deposit:submit": ["FINANCE_OFFICER"],
-  "deposit:approve": ["FINANCE_MANAGER"],
-  "deposit:reject": ["FINANCE_MANAGER"],
+  "deposit:approve": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
+  "deposit:reject": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
   "deposit:archive": ["FINANCE_MANAGER"],
   "deposit:export": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "AUDITOR"],
   "deposit:release_request": ["FINANCE_OFFICER"],
@@ -54,9 +54,10 @@ export const PERMISSIONS = {
   "payment_request:create": ["CLIENT"],
   "payment_request:cancel_own": ["CLIENT"],
   "payment_request:read_own": ["CLIENT"],
-  "payment_request:review": ["FINANCE_OFFICER"],
-  "payment_request:approve": ["FINANCE_MANAGER"],
-  "payment_request:reject": ["FINANCE_MANAGER"],
+  "payment_request:view_all": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER", "AUDITOR"],
+  "payment_request:review": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER"],
+  "payment_request:approve": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
+  "payment_request:reject": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
   // MFA management
   "mfa:reset": ["SUPER_ADMIN", "ADMIN"],
   // User unlock

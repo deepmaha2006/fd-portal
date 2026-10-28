@@ -45,7 +45,7 @@ const navItems = [
     href: "/admin/requests",
     label: "Client Requests",
     icon: Inbox,
-    permission: "deposit:approve" as const,
+    permission: "payment_request:view_all" as const,
   },
   {
     href: "/verifications",

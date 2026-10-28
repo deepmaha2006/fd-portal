@@ -14,6 +14,7 @@ const CreateRequestSchema = z.object({
   currency: z.string().default("INR"),
   bankName: z.string().max(200).optional(),
   accountNumber: z.string().max(50).optional(),
+  durationMonths: z.number().int().min(1).max(360).optional(),
   urgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).default("NORMAL"),
   depositId: z.string().optional(),
 });
@@ -35,8 +36,8 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(Number(req.nextUrl.searchParams.get("limit") ?? 20), 100);
     const status = req.nextUrl.searchParams.get("status");
 
-    // Clients see only their own requests; admins/managers see all
-    const isAdmin = ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"].includes(role);
+    // Clients see only their own requests; staff see all
+    const isAdmin = ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER", "AUDITOR"].includes(role);
 
     const where: Record<string, unknown> = {};
     if (!isAdmin) where.clientId = userId;
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
           currency: data.currency,
           bankName: data.bankName,
           accountNumber: data.accountNumber,
+          durationMonths: data.durationMonths,
           urgency: data.urgency,
           depositId: data.depositId,
         },

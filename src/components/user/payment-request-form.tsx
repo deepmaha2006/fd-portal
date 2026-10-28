@@ -11,6 +11,7 @@ const Schema = z.object({
   description: z.string().min(20, "Please provide at least 20 characters of detail").max(2000),
   amount: z.string().optional(),
   currency: z.string().default("INR"),
+  durationMonths: z.string().optional(),
   bankName: z.string().max(200).optional().or(z.literal("")),
   accountNumber: z.string().max(50).optional().or(z.literal("")),
   urgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).default("NORMAL"),
@@ -56,6 +57,7 @@ export function PaymentRequestForm() {
         body: JSON.stringify({
           ...data,
           amount: data.amount ? parseFloat(data.amount) : undefined,
+          durationMonths: data.durationMonths ? parseInt(data.durationMonths, 10) : undefined,
           bankName: data.bankName || undefined,
           accountNumber: data.accountNumber || undefined,
         }),
@@ -130,6 +132,43 @@ export function PaymentRequestForm() {
         />
         {errors.description && <p className="mt-1 text-xs text-red-600">{errors.description.message}</p>}
       </div>
+
+      {/* Duration — shown for FD requests */}
+      {(selectedType === "NEW_DEPOSIT" || selectedType === "RENEWAL") && (
+        <div>
+          <label htmlFor="durationMonths" className="block text-sm font-medium text-slate-700 mb-1">
+            FD Duration (months) <span className="text-red-500">*</span>
+          </label>
+          <p className="text-xs text-slate-500 mb-2">
+            Select the desired tenure for the fixed deposit (e.g. 12 months = 1 year, 36 months = 3 years).
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {[3, 6, 12, 24, 36, 60].map((m) => (
+              <label key={m} className={`flex cursor-pointer items-center gap-1.5 px-4 py-2 rounded-lg border text-sm transition-colors ${
+                watch("durationMonths") === String(m)
+                  ? "border-blue-600 bg-blue-50 text-blue-700 font-medium"
+                  : "border-slate-200 text-slate-600 hover:border-slate-300"
+              }`}>
+                <input {...register("durationMonths")} type="radio" value={String(m)} className="sr-only" />
+                {m < 12 ? `${m}M` : `${m / 12}Y`}
+              </label>
+            ))}
+            <div className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-1.5">
+              <input
+                {...register("durationMonths")}
+                type="number"
+                min="1"
+                max="360"
+                placeholder="Custom"
+                className="w-16 text-sm border-0 focus:outline-none text-slate-700"
+                onClick={(e) => e.currentTarget.select()}
+              />
+              <span className="text-xs text-slate-400">mo</span>
+            </div>
+          </div>
+          {errors.durationMonths && <p className="mt-1 text-xs text-red-600">{errors.durationMonths.message}</p>}
+        </div>
+      )}
 
       {/* Amount + Currency */}
       <div className="grid sm:grid-cols-3 gap-4">

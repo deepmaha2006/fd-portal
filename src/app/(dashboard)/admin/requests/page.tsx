@@ -37,7 +37,7 @@ export default async function AdminRequestsPage({
   if (!session) redirect("/login");
 
   const userRole = (session.user as any)?.role as UserRole;
-  if (!hasPermission(userRole, "deposit:approve")) redirect("/dashboard");
+  if (!hasPermission(userRole, "payment_request:view_all")) redirect("/dashboard");
 
   const page = Number(searchParams.page ?? 1);
   const limit = 20;
@@ -142,7 +142,7 @@ export default async function AdminRequestsPage({
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <AdminRequestActions requestId={r.id} currentStatus={r.status} />
+                      <AdminRequestActions requestId={r.id} currentStatus={r.status} userRole={userRole} />
                     </td>
                   </tr>
                 ))}

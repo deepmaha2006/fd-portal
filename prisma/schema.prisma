@@ -556,12 +556,13 @@ model PaymentRequest {
   type          PaymentRequestType
   status        PaymentRequestStatus @default(SUBMITTED)
 
-  amount        Float?
-  currency      String               @default("INR")
-  bankName      String?
-  accountNumber String?
-  description   String
-  urgency       String               @default("NORMAL")
+  amount          Float?
+  currency        String               @default("INR")
+  bankName        String?
+  accountNumber   String?
+  durationMonths  Int?
+  description     String
+  urgency         String               @default("NORMAL")
 
   reviewedById  String?
   reviewedBy    User?                @relation("ReviewedRequests", fields: [reviewedById], references: [id])

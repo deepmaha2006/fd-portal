@@ -24,27 +24,27 @@ type Transition = {
 const TRANSITIONS: Record<PaymentRequestStatus, Transition | undefined> = {
   UNDER_REVIEW: {
     allowedFrom: ["SUBMITTED"],
-    requiredRoles: ["FINANCE_OFFICER"],
+    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER"],
   },
   APPROVED: {
     allowedFrom: ["UNDER_REVIEW"],
-    requiredRoles: ["FINANCE_MANAGER"],
+    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
   },
   REJECTED: {
-    allowedFrom: ["UNDER_REVIEW"],
-    requiredRoles: ["FINANCE_MANAGER"],
+    allowedFrom: ["SUBMITTED", "UNDER_REVIEW"],
+    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
   },
   PROCESSING: {
     allowedFrom: ["APPROVED"],
-    requiredRoles: ["FINANCE_MANAGER"],
+    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
   },
   COMPLETED: {
     allowedFrom: ["PROCESSING"],
-    requiredRoles: ["FINANCE_MANAGER"],
+    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
   },
   CANCELLED: {
     allowedFrom: ["SUBMITTED", "UNDER_REVIEW"],
-    requiredRoles: ["CLIENT", "FINANCE_MANAGER"],
+    requiredRoles: ["CLIENT", "SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
   },
   SUBMITTED: undefined, // terminal in reverse; cannot transition TO SUBMITTED
 };

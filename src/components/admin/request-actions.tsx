@@ -6,9 +6,12 @@ import { Loader2, CheckCircle, XCircle, Eye, PlayCircle } from "lucide-react";
 interface AdminRequestActionsProps {
   requestId: string;
   currentStatus: string;
+  userRole?: string;
 }
 
-export function AdminRequestActions({ requestId, currentStatus }: AdminRequestActionsProps) {
+export function AdminRequestActions({ requestId, currentStatus, userRole }: AdminRequestActionsProps) {
+  const canReview = ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER"].includes(userRole ?? "");
+  const canApprove = ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"].includes(userRole ?? "");
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [showNotes, setShowNotes] = useState<string | null>(null);
@@ -66,7 +69,7 @@ export function AdminRequestActions({ requestId, currentStatus }: AdminRequestAc
 
   return (
     <div className="flex items-center gap-1.5">
-      {currentStatus === "SUBMITTED" && (
+      {currentStatus === "SUBMITTED" && canReview && (
         <button
           onClick={() => updateStatus("UNDER_REVIEW")}
           disabled={!!loading}
@@ -76,15 +79,17 @@ export function AdminRequestActions({ requestId, currentStatus }: AdminRequestAc
           {loading === "UNDER_REVIEW" ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
         </button>
       )}
-      {["SUBMITTED", "UNDER_REVIEW"].includes(currentStatus) && (
+      {["SUBMITTED", "UNDER_REVIEW"].includes(currentStatus) && canApprove && (
         <>
-          <button
-            onClick={() => setShowNotes("APPROVED")}
-            title="Approve"
-            className="p-1.5 rounded hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
-          >
-            <CheckCircle size={14} />
-          </button>
+          {currentStatus === "UNDER_REVIEW" && (
+            <button
+              onClick={() => setShowNotes("APPROVED")}
+              title="Approve"
+              className="p-1.5 rounded hover:bg-green-50 text-green-600 hover:text-green-700 transition-colors"
+            >
+              <CheckCircle size={14} />
+            </button>
+          )}
           <button
             onClick={() => setShowNotes("REJECTED")}
             title="Reject"
@@ -94,7 +99,7 @@ export function AdminRequestActions({ requestId, currentStatus }: AdminRequestAc
           </button>
         </>
       )}
-      {currentStatus === "APPROVED" && (
+      {currentStatus === "APPROVED" && canApprove && (
         <button
           onClick={() => updateStatus("PROCESSING")}
           disabled={!!loading}
@@ -104,7 +109,7 @@ export function AdminRequestActions({ requestId, currentStatus }: AdminRequestAc
           {loading === "PROCESSING" ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />}
         </button>
       )}
-      {currentStatus === "PROCESSING" && (
+      {currentStatus === "PROCESSING" && canApprove && (
         <button
           onClick={() => updateStatus("COMPLETED")}
           disabled={!!loading}
