@@ -1,197 +1,127 @@
-# Security Controls Checklist
+# Security Checklist
 
-All 19 mandatory security controls for the FD Portal.
-
-## Status Legend
-- ✅ Implemented
-- 🔶 Partial / In-progress
-- ❌ Not yet implemented
+Legend: ✅ Implemented + tested | ⚠️ Partial / manual step needed | ❌ Not implemented | N/A Not applicable
 
 ---
 
-## 1. Authentication — ✅
+## 1. Role Model & Permissions
 
-- NextAuth.js v4 with JWT strategy
-- bcrypt hashing (12 rounds) via bcryptjs
-- Account lockout after 5 failed attempts (15-minute lockout)
-- Secure `__Secure-` prefixed cookie in production
-- 8-hour session lifetime
+| Item | Status | Notes |
+|------|--------|-------|
+| 7 roles with clear hierarchy | ✅ | `src/lib/permissions.ts` — `ROLE_HIERARCHY` map |
+| SUPER_ADMIN has no deposit:create/approve (SoD) | ✅ | Unit tests in `permissions.test.ts` |
+| ADMIN has no deposit:approve/create | ✅ | Unit tests |
+| FINANCE_MANAGER is sole approver | ✅ | Unit tests |
+| FINANCE_OFFICER create/submit only | ✅ | Unit tests |
+| AUDITOR read-only, zero write permissions | ✅ | Unit tests |
+| VIEWER deposit:read only, no docs/export/PII | ✅ | Unit tests |
+| CLIENT payment_request gated by isKycVerified | ✅ | `/api/payment-requests POST` route |
+| `canManageRole()` hierarchy check | ✅ | `rbac-escalation.test.ts` |
 
-**File:** `src/lib/auth.ts`
+## 2. Privilege Escalation
 
----
+| Item | Status | Notes |
+|------|--------|-------|
+| api/users POST blocks creating role >= actor | ✅ | `canManageRole` + audit log |
+| api/users/[id]/role PATCH blocks self-modify | ✅ | Explicit check |
+| Cannot remove last SUPER_ADMIN | ✅ | Count check before update |
+| Role change bumps tokenVersion (revokes sessions) | ✅ | `tokenVersion: { increment: 1 }` |
+| Deactivation bumps tokenVersion | ✅ | Same |
 
-## 2. Authorization (RBAC) — ✅
+## 3. Maker-Checker / Separation of Duties
 
-- 6 roles: SUPER_ADMIN, ADMIN, FINANCE_MANAGER, FINANCE_OFFICER, AUDITOR, VIEWER
-- `PERMISSIONS` map with 19 granular permissions
-- `requirePermission()` throws `ForbiddenError` (403) on violation
-- Every API route and page checks permissions server-side
+| Item | Status | Notes |
+|------|--------|-------|
+| Deposit creator cannot approve | ✅ | `canApproveDeposit` in `maker-checker.ts` |
+| Release requester cannot approve RELEASED | ✅ | `canApproveRelease`; `releaseRequestedById` stored |
+| HIGH_VALUE_THRESHOLD (10M INR) configured | ✅ | `maker-checker.ts` |
+| High-value dual approval (Manager + SUPER_ADMIN) | ⚠️ | First approval enforced; second approver flow is a TODO in status route |
+| Payment request reviewer ≠ creator | ✅ | `UNDER_REVIEW` transition check |
+| Officer can only move to UNDER_REVIEW | ✅ | TRANSITIONS map |
+| Manager only approves/rejects | ✅ | TRANSITIONS map |
+| req.json() double-parse bug fixed | ✅ | Payment request status route |
 
-**Files:** `src/lib/permissions.ts`, all `src/app/api/*/route.ts`
+## 4. Row-Level Access
 
----
+| Item | Status | Notes |
+|------|--------|-------|
+| FINANCE_OFFICER can only edit own deposits | ⚠️ | `deposit:update_own` permission exists; enforced at API level — needs wiring in PATCH route |
+| VIEWER responses strip doc links and PII | ⚠️ | Permission defined; VIEWER-specific response filtering not yet in GET routes |
+| CLIENT IDOR check on payment requests | ✅ | status route + payment-request [id] route |
+| Postgres RLS | N/A | MongoDB — no RLS support; application-level row security used instead |
 
-## 3. Row-Level Security (RLS) — 🔶
+## 5. Soft Delete (No Hard Deletes)
 
-- API-level filtering: users only see deposits they own or are assigned
-- Database-level RLS policies planned for production migration
+| Item | Status | Notes |
+|------|--------|-------|
+| Deposits use soft delete (deletedAt, deletedById, reason) | ✅ | Schema + DELETE route |
+| Requires reason (min 10 chars) | ✅ | `SoftDeleteSchema` |
+| Restricted to SUPER_ADMIN + ADMIN | ✅ | Role check in DELETE route |
+| Audit logs DEPOSIT_DELETE_REQUESTED | ✅ | |
+| Audit logs are append-only | ✅ | No UPDATE/DELETE on AuditLog in any route |
+| DB-level revocation of UPDATE/DELETE on AuditLog | ⚠️ | MongoDB RBAC role needs to be configured in Atlas — manual step |
 
-**Note:** Add `ALTER TABLE deposits ENABLE ROW LEVEL SECURITY` + policies in prod migration.
+## 6. Authentication
 
----
+| Item | Status | Notes |
+|------|--------|-------|
+| TOTP MFA (otpauth) implemented | ✅ | `auth.ts` — mandatory for SUPER_ADMIN/ADMIN/FINANCE_MANAGER |
+| MFA blocks login if not configured for mandatory roles | ✅ | Throws `MfaNotConfigured` |
+| tokenVersion JWT revocation | ✅ | Session callback re-queries DB; stale tokens rejected |
+| Account lockout after 5 failed logins | ✅ | Pre-existing |
+| PENDING_VERIFICATION blocks login | ✅ | Pre-existing |
+| 30-min idle timeout for admin roles | ⚠️ | Not yet implemented; current session maxAge is 8h |
+| Re-authentication for sensitive actions | ⚠️ | Not yet implemented |
+| Client registration email verification | ⚠️ | `emailVerified` field exists; verification email not yet wired |
+| KYC review only from PENDING status | ✅ | `/api/kyc/[id]/review` checks status |
+| KYC reviewer ≠ account owner | ✅ | Check in KYC review route |
+| Seed script blocked in production | ⚠️ | Needs `if (process.env.NODE_ENV === 'production') throw` |
 
-## 4. IDOR Prevention — ✅
+## 7. Hardening
 
-- All resource lookups include ownership/role checks
-- Deposits are fetched with explicit `where: { id, ...(role check) }` guards
-- UUIDs are not sequential (Prisma `cuid()` default)
+| Item | Status | Notes |
+|------|--------|-------|
+| Rate limit: login (10/15min) | ✅ | `checkRateLimit` in login route |
+| Rate limit: register | ⚠️ | Config added; not wired into register route yet |
+| Rate limit: KYC upload | ⚠️ | Config added; not wired into KYC route yet |
+| Rate limit: export | ⚠️ | Config added; not wired into export route yet |
+| Trusted proxy only (X-Forwarded-For) | ✅ | `getClientIp()` in `csrf.ts` |
+| HSTS (1 year + subdomains) | ✅ | `next.config.mjs` |
+| CSP (base-uri, form-action) | ✅ | `next.config.mjs` |
+| X-Frame-Options DENY | ✅ | `next.config.mjs` |
+| Referrer-Policy | ✅ | `next.config.mjs` |
+| Permissions-Policy | ✅ | `next.config.mjs` |
+| CSRF (Origin check) helper | ✅ | `src/lib/csrf.ts` — needs wiring into state-changing routes |
+| File upload: MIME allowlist | ⚠️ | `secure-file.ts` exists; magic-byte check needs verification |
+| File upload: random storage names | ✅ | Pre-existing |
+| File upload: signed download URLs | ⚠️ | Not yet short-lived signed URLs |
+| Audit log 403 denials | ✅ | `PERMISSION_DENIED` action in escalation paths |
+| Audit log all login/logout/MFA events | ✅ | `auth.ts` |
+| Dashboard alert for 5+ denials/user/hour | ❌ | Not implemented |
+| Encrypt PAN/account numbers at rest | ❌ | Not implemented; `MFA_ENCRYPTION_KEY` env var exists |
 
----
+## 8. UI
 
-## 5. Input Validation — ✅
+| Item | Status | Notes |
+|------|--------|-------|
+| `usePermission()` hook | ✅ | `src/hooks/use-permission.ts` |
+| Server enforces all checks (not just UI hiding) | ✅ | Every route has its own permission check |
+| Roles & Permissions matrix page | ✅ | `/roles` — SUPER_ADMIN + AUDITOR only |
 
-- Zod schemas validate all API request bodies
-- Strict type coercion with `.parse()` (throws `ZodError` on violation)
-- `handleApiError()` returns `400` with field-level errors for Zod failures
-- Forms use `react-hook-form` + `zodResolver` for client-side pre-validation
+## 9. Tests
 
-**Files:** All `src/app/api/**` routes, form components
-
----
-
-## 6. Parameterized Queries — ✅
-
-- All database access via Prisma ORM (no raw string interpolation)
-- The one `$queryRaw` call (reports) uses tagged template literals (Prisma's safe API)
-
----
-
-## 7. Rate Limiting — ✅
-
-- DB-backed rate limiter (`RateLimit` model)
-- Default: 60 requests/minute per endpoint per user
-- Export endpoint: 5 requests/hour
-- Login: checked by NextAuth credentials provider
-- Fails open (allow) on DB errors to avoid locking out users
-
-**File:** `src/lib/rate-limit.ts`
-
----
-
-## 8. CORS — ✅
-
-- Next.js App Router restricts API routes to same-origin by default
-- No `Access-Control-Allow-Origin: *` header set
-
----
-
-## 9. HTTPS — 🔶
-
-- Production deployment must terminate TLS at the load balancer/reverse proxy
-- `NEXTAUTH_URL` must use `https://` in production
-- `__Secure-` cookie prefix enforces HTTPS-only cookie delivery
-
----
-
-## 10. Security Headers — ✅
-
-All headers set in `next.config.ts`:
-
-- `Content-Security-Policy` — restricts script/style/frame sources
-- `X-Frame-Options: DENY` — clickjacking prevention
-- `X-Content-Type-Options: nosniff` — MIME sniffing prevention
-- `Referrer-Policy: strict-origin-when-cross-origin`
-- `Permissions-Policy` — disables camera, microphone, geolocation
-
-**File:** `next.config.ts`
-
----
-
-## 11. File Upload Security — ✅
-
-- MIME type allowlist (PDF, JPEG, PNG, WEBP, TIFF, DOC, DOCX, XLS, XLSX)
-- Magic byte validation (reads file header bytes, not just extension)
-- Max file size: 10 MB
-- UUID-based server-side storage paths (original filename never used)
-- Path traversal prevention in `resolveStoragePath()`
-- `Content-Disposition: attachment` enforced on download
-
-**File:** `src/lib/secure-file.ts`, `src/app/api/deposits/[id]/documents/route.ts`
-
----
-
-## 12. Audit Trail — ✅
-
-- Every state change, login, approval, document action logged to `AuditLog`
-- Fields: userId, action, entityType, entityId, ipAddress, userAgent, description, metadata
-- Audit logging never crashes the application (wrapped in try/catch)
-- Immutable — no UPDATE/DELETE on audit logs
-
-**File:** `src/lib/audit.ts`
+| Item | Status | Notes |
+|------|--------|-------|
+| All role × permission combinations | ✅ | `permissions.test.ts` (34 tests) |
+| canManageRole edge cases | ✅ | `permissions.test.ts` + `rbac-escalation.test.ts` (17 tests) |
+| Maker-checker SoD rules | ✅ | `maker-checker.test.ts` (13 tests) |
+| Deposit transition rules | ✅ | `deposit-utils.test.ts` |
+| CSRF check | ✅ | `csrf.test.ts` (5 tests) |
+| Privilege escalation API tests (HTTP-level) | ❌ | Needs integration test setup with DB |
+| IDOR tests (HTTP-level) | ❌ | Needs integration test setup with DB |
+| Officer self-approval test (HTTP-level) | ❌ | Needs integration test setup with DB |
 
 ---
 
-## 13. Separation of Duties — ✅
-
-- Deposit creator cannot approve their own deposit (checked in status transition API)
-- `createdById !== approverId` enforced server-side
-
-**File:** `src/app/api/deposits/[id]/status/route.ts`
-
----
-
-## 14. Deposit Lifecycle State Machine — ✅
-
-- Valid transitions defined in `isValidTransition()`
-- Terminal states (MATURED, CANCELLED, CLOSED, FORFEITED) are immutable
-- State machine enforced server-side; client-side is display only
-
-**File:** `src/lib/deposit-utils.ts`
-
----
-
-## 15. CSV Formula Injection Prevention — ✅
-
-- `sanitizeCsvField()` prefixes `=`, `+`, `-`, `@` with `'` (Excel formula prefix prevention)
-- Applied to all fields in CSV export
-
-**File:** `src/lib/deposit-utils.ts`, `src/app/api/deposits/export/route.ts`
-
----
-
-## 16. Account Number Masking — ✅
-
-- Account numbers displayed as `****1234` (last 4 digits only)
-- Masking applied in UI components and CSV exports
-
----
-
-## 17. Secret Management — ✅
-
-- No secrets committed to the repository
-- `.env` files in `.gitignore`
-- `src/lib/env.ts` validates required vars at startup; throws in production if missing
-- `.env.example` contains only placeholder values
-
----
-
-## 18. Email Notification Security — ✅
-
-- Idempotency keys prevent duplicate reminders: `reminder:{depositId}:{event}:{date}`
-- Exponential backoff retry (max 3 attempts) for failed emails
-- HTML email content uses escaped interpolation only
-
-**File:** `src/server/workers/reminder-processor.ts`
-
----
-
-## 19. Session Security — ✅
-
-- JWT tokens signed with `NEXTAUTH_SECRET` (must be 32+ bytes in production)
-- Tokens include `iat`/`exp` claims (8-hour TTL)
-- Token invalidation on password change via `tokenVersion` pattern
-- `__Secure-` prefix in production (HTTPS-only)
-- `SameSite=lax` to mitigate CSRF on state-changing requests
-
-**File:** `src/lib/auth.ts`
+> No item is marked ✅ unless there is code or a test proving it works.
+> ⚠️ items are partially done and need follow-up work before being considered complete.
