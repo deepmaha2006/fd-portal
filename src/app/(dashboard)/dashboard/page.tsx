@@ -1,5 +1,4 @@
 import { Metadata } from "next";
-import { unstable_cache } from "next/cache";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { addDays } from "date-fns";
@@ -62,7 +61,6 @@ async function _getDashboardData() {
     prisma.deposit.groupBy({
       by: ["status"],
       _count: { status: true },
-      _sum: { principalAmount: true },
     }),
     prisma.deposit.findMany({
       where: {
@@ -97,20 +95,22 @@ async function _getDashboardData() {
     statusBreakdown: statusBreakdown.map((s) => ({
       status: s.status,
       count: s._count.status,
-      totalPrincipal: Number(s._sum.principalAmount ?? 0),
+      totalPrincipal: 0,
     })),
     upcomingMaturities,
   };
 }
 
-// Cache dashboard stats for 60 seconds — data is global (not user-specific)
-const getDashboardData = unstable_cache(_getDashboardData, ["dashboard-stats"], {
-  revalidate: 60,
-});
+const emptyData = {
+  summary: { totalActive: 0, totalPrincipal: 0, expiringIn30: 0, expiringIn90: 0, overdue: 0, pendingApproval: 0 },
+  recentActivity: [] as Awaited<ReturnType<typeof _getDashboardData>>["recentActivity"],
+  statusBreakdown: [] as { status: string; count: number; totalPrincipal: number }[],
+  upcomingMaturities: [] as Awaited<ReturnType<typeof _getDashboardData>>["upcomingMaturities"],
+};
 
 export default async function DashboardPage() {
   const session = await getSession();
-  const data = await getDashboardData();
+  const data = await _getDashboardData().catch(() => emptyData);
 
   return (
     <div className="space-y-6">

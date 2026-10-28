@@ -34,12 +34,12 @@ export default async function PortalPage() {
       where: { clientId: userId },
       orderBy: { createdAt: "desc" },
       take: 5,
-    }),
+    }).catch(() => []),
     prisma.paymentRequest.groupBy({
       by: ["status"],
       where: { clientId: userId },
       _count: true,
-    }),
+    }).catch(() => []),
   ]);
 
   const total = counts.reduce((s, c) => s + c._count, 0);
