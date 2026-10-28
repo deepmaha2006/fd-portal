@@ -117,9 +117,9 @@ Legend: ✅ Implemented + tested | ⚠️ Partial / manual step needed | ❌ Not
 | Maker-checker SoD rules | ✅ | `maker-checker.test.ts` (13 tests) |
 | Deposit transition rules | ✅ | `deposit-utils.test.ts` |
 | CSRF check | ✅ | `csrf.test.ts` (5 tests) |
-| Privilege escalation API tests (HTTP-level) | ❌ | Needs integration test setup with DB |
-| IDOR tests (HTTP-level) | ❌ | Needs integration test setup with DB |
-| Officer self-approval test (HTTP-level) | ❌ | Needs integration test setup with DB |
+| Privilege escalation API tests (HTTP-level) | ✅ | `tests/unit/api-security.test.ts` — ADMIN→ADMIN escalation blocked (403) |
+| IDOR tests (HTTP-level) | ✅ | `tests/unit/api-security.test.ts` — CLIENT IDOR on payment-requests blocked (403) |
+| Officer self-approval test (HTTP-level) | ✅ | `tests/unit/api-security.test.ts` — maker-checker SoD enforced (403) |
 
 ---
 
