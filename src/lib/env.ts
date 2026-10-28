@@ -70,10 +70,28 @@ export const env = {
   // Jobs
   REMINDER_CRON: optionalEnv("REMINDER_CRON", "0 6 * * *"),
 
-  // CORS / CSRF
-  ALLOWED_ORIGINS: optionalEnv("ALLOWED_ORIGINS", "http://localhost:3000")
-    .split(",")
-    .map((o) => o.trim()),
+  // CORS / CSRF — always include the app's own origin so same-site fetches work
+  // even when ALLOWED_ORIGINS isn't explicitly set (e.g. Vercel cold deploys)
+  ALLOWED_ORIGINS: (() => {
+    const explicit = optionalEnv("ALLOWED_ORIGINS", "")
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean);
+    const appUrls = [
+      optionalEnv("NEXTAUTH_URL", ""),
+      optionalEnv("NEXT_PUBLIC_APP_URL", ""),
+    ]
+      .map((u) => {
+        try {
+          return new URL(u).origin;
+        } catch {
+          return "";
+        }
+      })
+      .filter(Boolean);
+    const defaults = ["http://localhost:3000"];
+    return [...new Set([...explicit, ...appUrls, ...defaults])];
+  })(),
 
   // Proxy: when set, X-Forwarded-For is trusted for IP extraction
   TRUSTED_PROXY: optionalEnv("TRUSTED_PROXY"),

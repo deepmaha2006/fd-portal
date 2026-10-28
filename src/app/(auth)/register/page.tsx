@@ -41,8 +41,8 @@ export default async function RegisterPage() {
             {[
               {
                 icon: ShieldCheck,
-                title: "Secure & verified",
-                desc: "All accounts are admin-verified before access",
+                title: "Secure & KYC-verified",
+                desc: "Sign in instantly — submit KYC docs to unlock full access",
               },
               {
                 icon: Users,

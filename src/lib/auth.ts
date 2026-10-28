@@ -49,7 +49,7 @@ export const authOptions: NextAuthOptions = {
           (req?.headers?.["x-forwarded-for"] as string)?.split(",")[0]?.trim() ??
           "unknown";
 
-        const user = await prisma.user.findUnique({
+        let user = await prisma.user.findUnique({
           where: { email: credentials.email.toLowerCase().trim() },
         });
 
@@ -75,6 +75,14 @@ export const authOptions: NextAuthOptions = {
             ipAddress: ip,
           });
           throw new Error("AccountLocked");
+        }
+
+        // Auto-unlock: lockout period has expired but status is still LOCKED — reset it
+        if (user.status === "LOCKED" && (!user.lockedUntil || user.lockedUntil <= new Date())) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { status: "ACTIVE", lockedUntil: null, failedLoginAttempts: 0 },
+          });
         }
 
         // Check status
@@ -103,7 +111,7 @@ export const authOptions: NextAuthOptions = {
 
         const passwordValid = await compare(
           credentials.password,
-          user.hashedPassword
+          user.hashedPassword!
         );
 
         if (!passwordValid) {

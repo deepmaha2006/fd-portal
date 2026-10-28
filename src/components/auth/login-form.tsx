@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Eye, EyeOff, LogIn, Loader2 } from "lucide-react";
+import Link from "next/link";
 
 const LoginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -64,12 +65,18 @@ export function LoginForm() {
 
   const errorFromParams = searchParams.get("error");
   const registeredParam = searchParams.get("registered");
+  const resetParam = searchParams.get("reset");
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
       {registeredParam === "1" && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-          Account created! Please wait for admin verification before signing in.
+          Account created! Sign in below, then complete KYC verification in your portal settings.
+        </div>
+      )}
+      {resetParam === "1" && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+          Password updated! Sign in with your new password.
         </div>
       )}
       {(serverError || errorFromParams) && (
@@ -98,9 +105,14 @@ export function LoginForm() {
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">
-          Password
-        </label>
+        <div className="flex items-center justify-between mb-1">
+          <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+            Password
+          </label>
+          <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700">
+            Forgot password?
+          </Link>
+        </div>
         <div className="relative">
           <input
             {...register("password")}

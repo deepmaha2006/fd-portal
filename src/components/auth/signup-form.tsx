@@ -95,7 +95,7 @@ export function SignupForm() {
         </div>
         <h3 className="text-lg font-semibold text-slate-900 mb-2">Account created!</h3>
         <p className="text-sm text-slate-500">
-          Your account has been submitted for verification. You&apos;ll be redirected to sign in shortly.
+          You can sign in now. Complete KYC verification in your portal settings to unlock all features.
         </p>
       </div>
     );
@@ -245,8 +245,7 @@ export function SignupForm() {
       </div>
 
       <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-3 border border-slate-100">
-        Your account will be verified by an administrator before you can access the portal.
-        You&apos;ll receive an email once it&apos;s activated.
+        You can sign in immediately after registration. Complete KYC verification in your portal settings to submit deposit requests.
       </p>
 
       <button
