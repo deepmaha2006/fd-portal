@@ -5,7 +5,7 @@ import {
   LayoutDashboard,
   PlusCircle,
   ClipboardList,
-  User,
+  Settings,
   Building2,
 } from "lucide-react";
 import type { Session } from "next-auth";
@@ -14,7 +14,7 @@ const navItems = [
   { href: "/portal", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/portal/requests", label: "My Requests", icon: ClipboardList, exact: false },
   { href: "/portal/requests/new", label: "New Request", icon: PlusCircle, exact: true },
-  { href: "/portal/profile", label: "Profile", icon: User, exact: false },
+  { href: "/portal/settings", label: "Settings", icon: Settings, exact: false },
 ];
 
 interface PortalSidebarProps {

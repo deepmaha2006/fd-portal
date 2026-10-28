@@ -102,6 +102,23 @@ enum NotificationStatus {
   SKIPPED
 }
 
+enum KycDocumentType {
+  AADHAAR
+  PAN_CARD
+  PASSPORT
+  DRIVING_LICENSE
+  VOTER_ID
+  BANK_STATEMENT
+  UTILITY_BILL
+  OTHER
+}
+
+enum KycStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
 enum AuditAction {
   // Auth
   USER_LOGIN
@@ -142,6 +159,10 @@ enum AuditAction {
   NOTIFICATION_SENT
   NOTIFICATION_FAILED
   REMINDER_CONFIG_CHANGED
+  // KYC
+  KYC_SUBMITTED
+  KYC_APPROVED
+  KYC_REJECTED
   // Admin
   SETTINGS_CHANGED
   REPORT_GENERATED
@@ -188,6 +209,9 @@ model User {
   notificationPrefs    NotificationPreference[]
   paymentRequests      PaymentRequest[]  @relation("ClientRequests")
   reviewedRequests     PaymentRequest[]  @relation("ReviewedRequests")
+  isKycVerified        Boolean           @default(false)
+  kycVerification      KycVerification?
+  kycReviewed          KycVerification[] @relation("KycReviewer")
 
   @@index([status])
   @@index([role])
@@ -543,6 +567,26 @@ model PaymentRequestHistory {
   createdAt DateTime             @default(now())
 
   @@index([requestId])
+}
+
+// ─── KYC Verification ────────────────────────────────────────────────────────
+
+model KycVerification {
+  id             String          @id @default(cuid()) @map("_id")
+  userId         String          @unique
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType   KycDocumentType
+  documentNumber String?
+  fullName       String?
+  status         KycStatus       @default(PENDING_REVIEW)
+  submittedAt    DateTime        @default(now())
+  reviewedById   String?
+  reviewedBy     User?           @relation("KycReviewer", fields: [reviewedById], references: [id])
+  reviewedAt     DateTime?
+  reviewNotes    String?
+  updatedAt      DateTime        @updatedAt
+
+  @@index([status])
 }
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────

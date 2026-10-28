@@ -69,6 +69,22 @@ export async function POST(req: NextRequest) {
     if (!session) throw new UnauthorizedError();
 
     const userId = getUserId(session)!;
+    const role = (session.user as any)?.role as string;
+
+    // Clients must have approved KYC before submitting payment requests
+    if (role === "CLIENT") {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { isKycVerified: true },
+      });
+      if (!user?.isKycVerified) {
+        return NextResponse.json(
+          { success: false, error: "KYC_REQUIRED", message: "Your identity must be verified before submitting requests. Please complete KYC verification in Settings." },
+          { status: 403 }
+        );
+      }
+    }
+
     const body = await req.json();
     const data = CreateRequestSchema.parse(body);
 

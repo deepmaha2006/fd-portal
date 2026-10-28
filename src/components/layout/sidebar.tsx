@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Building2,
   Inbox,
+  BadgeCheck,
 } from "lucide-react";
 import type { Session } from "next-auth";
 import { hasPermission } from "@/lib/permissions";
@@ -45,6 +46,12 @@ const navItems = [
     label: "Client Requests",
     icon: Inbox,
     permission: "deposit:approve" as const,
+  },
+  {
+    href: "/verifications",
+    label: "Verifications",
+    icon: BadgeCheck,
+    permission: "kyc:review" as const,
   },
   {
     href: "/audit-logs",

@@ -47,13 +47,13 @@ export async function POST(req: NextRequest) {
         email: data.email,
         hashedPassword,
         role: "CLIENT",
-        status: "PENDING_VERIFICATION",
+        status: "ACTIVE",
         department: deptInfo,
       },
     });
 
     return NextResponse.json(
-      { success: true, message: "Account created. Please wait for admin verification." },
+      { success: true, message: "Account created. You can now log in. Please complete KYC verification in your portal settings to enable payment features." },
       { status: 201 }
     );
   } catch (err) {
