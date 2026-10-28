@@ -168,6 +168,13 @@ enum AuditAction {
   REPORT_GENERATED
   EXPORT_GENERATED
   WEBHOOK_RECEIVED
+  // Security
+  PERMISSION_DENIED
+  DEPOSIT_DELETE_REQUESTED
+  DEPOSIT_DELETE_APPROVED
+  MFA_CHALLENGE_PASSED
+  MFA_CHALLENGE_FAILED
+  TOKEN_REVOKED
 }
 
 enum ApprovalAction {
@@ -212,6 +219,8 @@ model User {
   isKycVerified        Boolean           @default(false)
   kycVerification      KycVerification?
   kycReviewed          KycVerification[] @relation("KycReviewer")
+  // JWT revocation: bump this field on role change, deactivation, or password reset
+  tokenVersion         Int               @default(0)
 
   @@index([status])
   @@index([role])
@@ -373,6 +382,14 @@ model Deposit {
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
+  // Maker-checker: who requested the release (cannot also approve it)
+  releaseRequestedById String?
+
+  // Soft delete: no hard deletes; requires reason + dual approval
+  deletedAt           DateTime?
+  deletedById         String?
+  deleteReason        String?
+
   documents           Document[]
   lifecycleEvents     LifecycleEvent[]
   approvalRequests    ApprovalRequest[]
@@ -407,15 +424,19 @@ model LifecycleEvent {
 }
 
 model ApprovalRequest {
-  id          String         @id @default(cuid()) @map("_id")
-  depositId   String
-  deposit     Deposit        @relation(fields: [depositId], references: [id])
-  requestedBy String?
-  actorId     String?
-  actor       User?          @relation("ApprovalActor", fields: [actorId], references: [id])
-  action      ApprovalAction
-  notes       String?
-  createdAt   DateTime       @default(now())
+  id               String         @id @default(cuid()) @map("_id")
+  depositId        String
+  deposit          Deposit        @relation(fields: [depositId], references: [id])
+  requestedBy      String?
+  actorId          String?
+  actor            User?          @relation("ApprovalActor", fields: [actorId], references: [id])
+  action           ApprovalAction
+  notes            String?
+  // High-value dual approval: set when a second approver (SUPER_ADMIN) confirms
+  isHighValue      Boolean        @default(false)
+  secondApproverId String?
+  secondApprovedAt DateTime?
+  createdAt        DateTime       @default(now())
 
   @@index([depositId])
   @@index([actorId])
