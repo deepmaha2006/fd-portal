@@ -31,13 +31,23 @@ const ALLOWED_EXTENSIONS = new Set([
   ".xlsx",
 ]);
 
-// Magic bytes for common file types (simplified check)
-const FILE_SIGNATURES: Array<{ bytes: number[]; mime: string }> = [
-  { bytes: [0x25, 0x50, 0x44, 0x46], mime: "application/pdf" }, // %PDF
-  { bytes: [0xff, 0xd8, 0xff], mime: "image/jpeg" },
+// Magic bytes for all allowed file types
+const FILE_SIGNATURES: Array<{
+  bytes: number[];
+  offset?: number;
+  mime: string;
+}> = [
+  { bytes: [0x25, 0x50, 0x44, 0x46], mime: "application/pdf" },       // %PDF
+  { bytes: [0xff, 0xd8, 0xff],        mime: "image/jpeg" },
   { bytes: [0x89, 0x50, 0x4e, 0x47], mime: "image/png" },
-  { bytes: [0x50, 0x4b, 0x03, 0x04], mime: "application/zip" }, // docx/xlsx
-  { bytes: [0xd0, 0xcf, 0x11, 0xe0], mime: "application/msword" }, // DOC/XLS
+  // RIFF header → check "WEBP" at offset 8
+  { bytes: [0x52, 0x49, 0x46, 0x46], offset: 0, mime: "image/webp_riff" },
+  { bytes: [0x57, 0x45, 0x42, 0x50], offset: 8, mime: "image/webp" },
+  // TIFF: little-endian (II*.) and big-endian (MM.*)
+  { bytes: [0x49, 0x49, 0x2a, 0x00], mime: "image/tiff" },
+  { bytes: [0x4d, 0x4d, 0x00, 0x2a], mime: "image/tiff" },
+  { bytes: [0x50, 0x4b, 0x03, 0x04], mime: "application/zip" },        // docx/xlsx
+  { bytes: [0xd0, 0xcf, 0x11, 0xe0], mime: "application/msword" },     // DOC/XLS
 ];
 
 export interface StoreFileResult {
@@ -53,8 +63,20 @@ export interface FileValidationError {
 }
 
 function detectMimeFromBytes(buffer: Buffer): string | null {
+  // WEBP requires two separate checks (RIFF header + WEBP marker at offset 8)
+  const isWebp =
+    FILE_SIGNATURES.find(
+      (s) => s.mime === "image/webp_riff" && s.bytes.every((b, i) => buffer[i] === b)
+    ) &&
+    FILE_SIGNATURES.find(
+      (s) => s.mime === "image/webp" && s.bytes.every((b, i) => buffer[(s.offset ?? 0) + i] === b)
+    );
+  if (isWebp) return "image/webp";
+
   for (const sig of FILE_SIGNATURES) {
-    if (sig.bytes.every((b, i) => buffer[i] === b)) {
+    if (sig.mime === "image/webp_riff" || sig.mime === "image/webp") continue;
+    const off = sig.offset ?? 0;
+    if (sig.bytes.every((b, i) => buffer[off + i] === b)) {
       return sig.mime;
     }
   }
@@ -95,15 +117,18 @@ export async function storeFile(
 ): Promise<StoreFileResult> {
   // Verify magic bytes match declared MIME
   const detectedMime = detectMimeFromBytes(buffer);
-  // For Office formats (docx/xlsx) the magic is ZIP — allow it
+  // All allowed MIME types now have known signatures; "application/zip" covers docx/xlsx
   const isMimeOk =
     detectedMime === declaredMime ||
     (detectedMime === "application/zip" &&
-      (declaredMime.includes("openxmlformats") || declaredMime.includes("msword"))) ||
-    detectedMime === null; // fall through if unknown
+      (declaredMime.includes("openxmlformats") || declaredMime.includes("msword")));
 
-  if (!isMimeOk && detectedMime !== null) {
-    throw new Error("File content does not match its declared type.");
+  if (!isMimeOk) {
+    throw new Error(
+      detectedMime === null
+        ? "Unrecognized file format. Only PDF, JPEG, PNG, WEBP, TIFF, DOC, DOCX, XLS, XLSX are accepted."
+        : "File content does not match its declared type."
+    );
   }
 
   // Generate opaque server-side path — never use original filename

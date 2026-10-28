@@ -9,6 +9,7 @@ import { getUserId, UnauthorizedError, ForbiddenError } from "@/lib/permissions"
 import { ok, handleApiError } from "@/lib/api-response";
 import { checkCsrf, getClientIp } from "@/lib/csrf";
 import { isHighValue } from "@/lib/maker-checker";
+import { requireRecentAuth } from "@/lib/reauth";
 
 const SecondApproveSchema = z.object({
   notes: z.string().max(2000).optional(),
@@ -41,6 +42,9 @@ export async function POST(
     if (role !== "SUPER_ADMIN") {
       throw new ForbiddenError("Only SUPER_ADMIN can provide second approval");
     }
+
+    // High-value second approval requires fresh authentication (within 5 minutes)
+    await requireRecentAuth(req, 300);
 
     const body = await req.json();
     const { notes } = SecondApproveSchema.parse(body);

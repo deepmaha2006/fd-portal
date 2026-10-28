@@ -221,6 +221,8 @@ export const authOptions: NextAuthOptions = {
         if (ADMIN_IDLE_ROLES.has((user as any).role)) {
           token.adminIdleExpiry = Date.now() + ADMIN_IDLE_TIMEOUT_MS;
         }
+        // Record sign-in time so re-auth-sensitive actions can check freshness
+        token.authTime = Date.now();
       }
       return token;
     },

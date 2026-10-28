@@ -14,6 +14,7 @@ import {
   ForbiddenError,
 } from "@/lib/permissions";
 import { ok, handleApiError } from "@/lib/api-response";
+import { requireRecentAuth } from "@/lib/reauth";
 import type { UserRole } from "@prisma/client";
 
 const ChangeRoleSchema = z.object({
@@ -35,6 +36,9 @@ export async function PATCH(
     const session = await getServerSession(authOptions);
     if (!session) throw new UnauthorizedError();
     requirePermission(session, "user:role_change");
+
+    // Role changes require fresh authentication (within 5 minutes)
+    await requireRecentAuth(req, 300);
 
     const actorId = getUserId(session)!;
     const actorRole = getUserRole(session)!;
