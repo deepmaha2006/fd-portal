@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { hasPermission } from "@/lib/permissions";
 import { OrderTracking } from "@/components/ui/order-tracking";
 import { AdminRequestActions } from "@/components/admin/request-actions";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PlusCircle } from "lucide-react";
 import type { UserRole, PaymentRequestStatus } from "@prisma/client";
 
 export const metadata: Metadata = { title: "Request Detail" };
@@ -93,6 +93,14 @@ export default async function AdminRequestDetailPage({ params }: { params: { id:
             <span className={`text-sm font-semibold px-3 py-1.5 rounded-full ${statusColors[request.status]}`}>
               {statusLabels[request.status]}
             </span>
+            {request.type === "NEW_DEPOSIT" && (
+              <Link
+                href={`/deposits/new?amount=${request.amount ?? ""}&currency=${request.currency}&notes=${encodeURIComponent(`From client request ${request.requestNumber}: ${request.description.slice(0, 200)}`)}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                <PlusCircle size={13} /> Create Deposit
+              </Link>
+            )}
             {!isTerminal && <AdminRequestActions requestId={request.id} currentStatus={request.status} />}
           </div>
         </div>

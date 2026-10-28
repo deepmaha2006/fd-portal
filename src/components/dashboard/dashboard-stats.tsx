@@ -5,6 +5,7 @@ import {
   CheckCircle,
   DollarSign,
   AlertCircle,
+  Inbox,
 } from "lucide-react";
 
 interface DashboardSummary {
@@ -14,6 +15,7 @@ interface DashboardSummary {
   expiringIn90: number;
   overdue: number;
   pendingApproval: number;
+  pendingClientRequests: number;
 }
 
 export function DashboardStats({ summary }: { summary: DashboardSummary }) {
@@ -25,6 +27,7 @@ export function DashboardStats({ summary }: { summary: DashboardSummary }) {
       color: "text-emerald-600",
       bg: "bg-emerald-50",
       description: "Currently active",
+      href: "/deposits?status=ACTIVE",
     },
     {
       title: "Total Principal",
@@ -38,6 +41,25 @@ export function DashboardStats({ summary }: { summary: DashboardSummary }) {
       color: "text-blue-600",
       bg: "bg-blue-50",
       description: "Active deposits value",
+      href: "/deposits",
+    },
+    {
+      title: "Client Requests",
+      value: summary.pendingClientRequests.toLocaleString(),
+      icon: Inbox,
+      color: summary.pendingClientRequests > 0 ? "text-violet-600" : "text-slate-400",
+      bg: summary.pendingClientRequests > 0 ? "bg-violet-50" : "bg-slate-50",
+      description: "Awaiting review",
+      href: "/admin/requests?status=SUBMITTED",
+    },
+    {
+      title: "Pending Approval",
+      value: summary.pendingApproval.toLocaleString(),
+      icon: AlertCircle,
+      color: summary.pendingApproval > 0 ? "text-orange-600" : "text-slate-400",
+      bg: summary.pendingApproval > 0 ? "bg-orange-50" : "bg-slate-50",
+      description: "Deposits awaiting approval",
+      href: "/deposits?status=PENDING_REVIEW",
     },
     {
       title: "Expiring in 30 Days",
@@ -46,6 +68,7 @@ export function DashboardStats({ summary }: { summary: DashboardSummary }) {
       color: summary.expiringIn30 > 0 ? "text-amber-600" : "text-slate-400",
       bg: summary.expiringIn30 > 0 ? "bg-amber-50" : "bg-slate-50",
       description: "Require action",
+      href: "/deposits",
     },
     {
       title: "Overdue",
@@ -54,31 +77,17 @@ export function DashboardStats({ summary }: { summary: DashboardSummary }) {
       color: summary.overdue > 0 ? "text-red-600" : "text-slate-400",
       bg: summary.overdue > 0 ? "bg-red-50" : "bg-slate-50",
       description: "Past maturity date",
-    },
-    {
-      title: "Pending Approval",
-      value: summary.pendingApproval.toLocaleString(),
-      icon: AlertCircle,
-      color: summary.pendingApproval > 0 ? "text-orange-600" : "text-slate-400",
-      bg: summary.pendingApproval > 0 ? "bg-orange-50" : "bg-slate-50",
-      description: "Awaiting review",
-    },
-    {
-      title: "Expiring in 90 Days",
-      value: summary.expiringIn90.toLocaleString(),
-      icon: TrendingUp,
-      color: "text-indigo-600",
-      bg: "bg-indigo-50",
-      description: "Plan renewals",
+      href: "/deposits",
     },
   ];
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
       {stats.map((stat) => (
-        <div
+        <a
           key={stat.title}
-          className="bg-white rounded-xl border border-slate-200 p-4"
+          href={stat.href}
+          className="bg-white rounded-xl border border-slate-200 p-4 hover:border-slate-300 hover:shadow-sm transition-all"
         >
           <div className={`inline-flex p-2 rounded-lg ${stat.bg} mb-3`}>
             <stat.icon size={18} className={stat.color} />
@@ -86,7 +95,7 @@ export function DashboardStats({ summary }: { summary: DashboardSummary }) {
           <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
           <p className="text-sm font-medium text-slate-700 mt-0.5">{stat.title}</p>
           <p className="text-xs text-slate-400 mt-0.5">{stat.description}</p>
-        </div>
+        </a>
       ))}
     </div>
   );

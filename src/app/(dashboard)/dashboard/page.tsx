@@ -21,6 +21,7 @@ async function _getDashboardData() {
     expiringIn90,
     overdue,
     pendingApproval,
+    pendingClientRequests,
     recentActivity,
     statusBreakdown,
     upcomingMaturities,
@@ -51,6 +52,9 @@ async function _getDashboardData() {
       },
     }),
     prisma.deposit.count({ where: { status: "PENDING_REVIEW" } }),
+    prisma.paymentRequest.count({
+      where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
+    }),
     prisma.lifecycleEvent.findMany({
       take: 8,
       orderBy: { occurredAt: "desc" },
@@ -90,6 +94,7 @@ async function _getDashboardData() {
       expiringIn90,
       overdue,
       pendingApproval,
+      pendingClientRequests,
     },
     recentActivity,
     statusBreakdown: statusBreakdown.map((s) => ({
@@ -102,7 +107,7 @@ async function _getDashboardData() {
 }
 
 const emptyData = {
-  summary: { totalActive: 0, totalPrincipal: 0, expiringIn30: 0, expiringIn90: 0, overdue: 0, pendingApproval: 0 },
+  summary: { totalActive: 0, totalPrincipal: 0, expiringIn30: 0, expiringIn90: 0, overdue: 0, pendingApproval: 0, pendingClientRequests: 0 },
   recentActivity: [] as Awaited<ReturnType<typeof _getDashboardData>>["recentActivity"],
   statusBreakdown: [] as { status: string; count: number; totalPrincipal: number }[],
   upcomingMaturities: [] as Awaited<ReturnType<typeof _getDashboardData>>["upcomingMaturities"],
