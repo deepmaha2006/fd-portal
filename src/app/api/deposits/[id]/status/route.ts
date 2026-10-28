@@ -5,9 +5,10 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/audit";
-import { requirePermission, getUserId, UnauthorizedError } from "@/lib/permissions";
+import { requirePermission, getUserId, UnauthorizedError, ForbiddenError } from "@/lib/permissions";
 import { ok, handleApiError } from "@/lib/api-response";
 import { isValidTransition } from "@/lib/deposit-utils";
+import { canApproveDeposit, canApproveRelease, isHighValue } from "@/lib/maker-checker";
 import type { DepositStatus, AuditAction } from "@prisma/client";
 
 const StatusChangeSchema = z.object({
@@ -87,21 +88,36 @@ export async function POST(
       requirePermission(session, "deposit:update");
     }
 
-    // Enforce separation of duties: submitter cannot be approver
-    if (
-      newStatus === "APPROVED" &&
-      deposit.createdById === actorId
-    ) {
-      return NextResponse.json(
-        { success: false, error: "The creator cannot approve their own deposit" },
-        { status: 403 }
+    // ── Separation of duties ───────────────────────────────────────────────────
+    if (newStatus === "APPROVED" && !canApproveDeposit(actorId, deposit.createdById)) {
+      throw new ForbiddenError("The creator cannot approve their own deposit");
+    }
+
+    if (newStatus === "RELEASED" && !canApproveRelease(actorId, deposit.releaseRequestedById)) {
+      throw new ForbiddenError(
+        "The person who requested a release cannot approve it"
       );
+    }
+
+    // ── High-value: FINANCE_MANAGER approves first, then SUPER_ADMIN must confirm ─
+    if (newStatus === "APPROVED" && isHighValue(deposit.principalAmount)) {
+      const role = (session.user as any)?.role as string;
+      // FINANCE_MANAGER does the first approval — it sets an isHighValue flag.
+      // SUPER_ADMIN confirms later via a separate step (second approver).
+      // For now, FINANCE_MANAGER sets APPROVED but marks the record as awaiting SUPER_ADMIN.
+      if (role !== "FINANCE_MANAGER" && role !== "SUPER_ADMIN") {
+        throw new ForbiddenError("High-value deposits require FINANCE_MANAGER or SUPER_ADMIN approval");
+      }
     }
 
     const updateData: Record<string, unknown> = { status: newStatus };
     if (newStatus === "APPROVED") {
       updateData.approvedById = actorId;
       updateData.approvedAt = new Date();
+    }
+    if (newStatus === "RELEASE_PENDING") {
+      // Record who requested the release for SoD enforcement at the RELEASED step
+      updateData.releaseRequestedById = actorId;
     }
     if (newStatus === "RELEASED") {
       updateData.releaseDate = new Date();
@@ -138,6 +154,7 @@ export async function POST(
                 : "SUBMITTED",
           notes: notes ?? null,
           requestedBy: actorId,
+          isHighValue: newStatus === "APPROVED" && isHighValue(deposit.principalAmount),
         },
       });
 
