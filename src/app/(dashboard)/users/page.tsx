@@ -4,60 +4,106 @@ import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { hasPermission } from "@/lib/permissions";
 import type { UserRole } from "@prisma/client";
+import { ActivateUserButton } from "@/components/admin/activate-user-button";
 
 export const metadata: Metadata = { title: "User Management" };
 
-export default async function UsersPage() {
+const statusColor: Record<string, string> = {
+  ACTIVE: "bg-green-100 text-green-700",
+  INACTIVE: "bg-slate-100 text-slate-600",
+  LOCKED: "bg-red-100 text-red-700",
+  PENDING_VERIFICATION: "bg-amber-100 text-amber-700",
+};
+
+const roleColor: Record<string, string> = {
+  SUPER_ADMIN: "bg-purple-100 text-purple-700",
+  ADMIN: "bg-blue-100 text-blue-700",
+  FINANCE_MANAGER: "bg-indigo-100 text-indigo-700",
+  FINANCE_OFFICER: "bg-cyan-100 text-cyan-700",
+  AUDITOR: "bg-orange-100 text-orange-700",
+  VIEWER: "bg-slate-100 text-slate-600",
+  CLIENT: "bg-teal-100 text-teal-700",
+};
+
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: { role?: string };
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
 
   const role = (session.user as any)?.role as UserRole;
   if (!hasPermission(role, "user:manage")) redirect("/dashboard");
 
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      status: true,
-      department: true,
-      failedLoginAttempts: true,
-      lastLoginAt: true,
-      createdAt: true,
-    },
-  });
+  const where: Record<string, unknown> = {};
+  if (searchParams.role) where.role = searchParams.role;
 
-  const statusColor: Record<string, string> = {
-    ACTIVE: "bg-green-100 text-green-700",
-    INACTIVE: "bg-slate-100 text-slate-600",
-    LOCKED: "bg-red-100 text-red-700",
-    PENDING: "bg-yellow-100 text-yellow-700",
-  };
+  const [users, pendingCount] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        department: true,
+        failedLoginAttempts: true,
+        lastLoginAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.user.count({ where: { status: "PENDING_VERIFICATION" } }),
+  ]);
 
-  const roleColor: Record<string, string> = {
-    SUPER_ADMIN: "bg-purple-100 text-purple-700",
-    ADMIN: "bg-blue-100 text-blue-700",
-    FINANCE_MANAGER: "bg-indigo-100 text-indigo-700",
-    FINANCE_OFFICER: "bg-cyan-100 text-cyan-700",
-    AUDITOR: "bg-orange-100 text-orange-700",
-    VIEWER: "bg-slate-100 text-slate-600",
-  };
+  const roleTabs = [
+    { label: "All", value: "" },
+    { label: "Admins", value: "ADMIN" },
+    { label: "Finance", value: "FINANCE_MANAGER" },
+    { label: "Officers", value: "FINANCE_OFFICER" },
+    { label: "Auditors", value: "AUDITOR" },
+    { label: `Clients${pendingCount > 0 ? ` (${pendingCount} pending)` : ""}`, value: "CLIENT" },
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Users</h1>
-          <p className="text-slate-500 text-sm mt-1">{users.length} total users</p>
+          <p className="text-slate-500 text-sm mt-1">
+            {users.length} user{users.length !== 1 ? "s" : ""}
+            {pendingCount > 0 && (
+              <span className="ml-2 text-amber-600 font-medium">· {pendingCount} pending verification</span>
+            )}
+          </p>
         </div>
         <a
           href="/users/new"
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm"
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
         >
           Add User
         </a>
+      </div>
+
+      {/* Role filter tabs */}
+      <div className="flex gap-2 flex-wrap">
+        {roleTabs.map((tab) => {
+          const isActive = (searchParams.role ?? "") === tab.value;
+          const href = tab.value ? `/users?role=${tab.value}` : "/users";
+          return (
+            <a key={tab.value} href={href}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                isActive
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              {tab.label}
+            </a>
+          );
+        })}
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -66,10 +112,10 @@ export default async function UsersPage() {
             <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
               <th className="px-4 py-3">Name / Email</th>
               <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Department</th>
+              <th className="px-4 py-3">Department / Org</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Last Login</th>
-              <th className="px-4 py-3">Failed Attempts</th>
+              <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -84,19 +130,21 @@ export default async function UsersPage() {
                     {u.role.replace(/_/g, " ")}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-slate-600">{u.department ?? "—"}</td>
+                <td className="px-4 py-3 text-slate-600 text-xs">{u.department ?? "—"}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusColor[u.status] ?? ""}`}>
-                    {u.status}
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusColor[u.status] ?? "bg-slate-100 text-slate-600"}`}>
+                    {u.status === "PENDING_VERIFICATION" ? "Pending" : u.status}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-slate-500 text-xs">
                   {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString("en-IN") : "Never"}
                 </td>
-                <td className="px-4 py-3 text-center">
-                  <span className={u.failedLoginAttempts > 0 ? "text-red-600 font-medium" : "text-slate-400"}>
-                    {u.failedLoginAttempts}
-                  </span>
+                <td className="px-4 py-3">
+                  {u.status === "PENDING_VERIFICATION" ? (
+                    <ActivateUserButton userId={u.id} />
+                  ) : (
+                    <span className="text-xs text-slate-400">—</span>
+                  )}
                 </td>
               </tr>
             ))}

@@ -8,8 +8,8 @@ import {
   BarChart3,
   Settings,
   ShieldCheck,
-  Bell,
   Building2,
+  Inbox,
 } from "lucide-react";
 import type { Session } from "next-auth";
 import { hasPermission } from "@/lib/permissions";
@@ -39,6 +39,12 @@ const navItems = [
     label: "Users",
     icon: Users,
     permission: "user:read" as const,
+  },
+  {
+    href: "/admin/requests",
+    label: "Client Requests",
+    icon: Inbox,
+    permission: "deposit:approve" as const,
   },
   {
     href: "/audit-logs",

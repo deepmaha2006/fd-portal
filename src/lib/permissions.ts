@@ -33,6 +33,10 @@ export const PERMISSIONS = {
   "admin:reminders": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
   // Reports
   "report:generate": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "AUDITOR"],
+  // Client / Payment requests
+  "payment_request:create": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER", "CLIENT"],
+  "payment_request:read_own": ["CLIENT"],
+  "payment_request:review": ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER"],
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;

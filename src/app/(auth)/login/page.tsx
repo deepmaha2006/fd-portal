@@ -1,34 +1,91 @@
 import { Metadata } from "next";
+import Link from "next/link";
 import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { LoginForm } from "@/components/auth/login-form";
+import { Building2, ShieldCheck, TrendingUp } from "lucide-react";
+import type { UserRole } from "@prisma/client";
 
 export const metadata: Metadata = { title: "Sign In" };
 
 export default async function LoginPage() {
   const session = await getServerSession(authOptions);
-  if (session) redirect("/dashboard");
+  if (session) {
+    const role = (session.user as any)?.role as UserRole;
+    if (role === "CLIENT") redirect("/portal");
+    redirect("/dashboard");
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900">FD Portal</h1>
-            <p className="text-slate-500 text-sm mt-1">Security Deposit Management System</p>
+    <div className="min-h-screen flex">
+      {/* Left panel — branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 to-blue-950 flex-col justify-between p-12">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+            <Building2 size={18} className="text-white" />
           </div>
-          <LoginForm />
+          <span className="font-bold text-white text-lg">FD Portal</span>
         </div>
-        <p className="text-center text-slate-400 text-xs mt-6">
+
+        <div>
+          <h2 className="text-4xl font-extrabold text-white leading-tight mb-4">
+            Secure deposit management
+            <br />
+            <span className="text-blue-400">for your organization</span>
+          </h2>
+          <p className="text-slate-300 text-base leading-relaxed mb-10">
+            Track fixed deposits, manage renewals, and stay on top of maturities
+            with our comprehensive portal.
+          </p>
+          <div className="space-y-4">
+            {[
+              { icon: ShieldCheck, text: "Role-based access with full audit trail" },
+              { icon: TrendingUp, text: "Real-time portfolio analytics" },
+              { icon: Building2, text: "Multi-bank, multi-branch support" },
+            ].map((item) => (
+              <div key={item.text} className="flex items-center gap-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-600/20 rounded-lg flex items-center justify-center">
+                  <item.icon size={14} className="text-blue-400" />
+                </div>
+                <span className="text-slate-300 text-sm">{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-slate-500 text-sm">
           © {new Date().getFullYear()} FD Portal. All rights reserved.
         </p>
+      </div>
+
+      {/* Right panel — form */}
+      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white">
+        <div className="w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="flex items-center gap-2 mb-10 lg:hidden">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Building2 size={16} className="text-white" />
+            </div>
+            <span className="font-bold text-slate-900">FD Portal</span>
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
+            <p className="text-slate-500 text-sm mt-1">
+              Sign in to your account to continue
+            </p>
+          </div>
+
+          <LoginForm />
+
+          <p className="text-center text-sm text-slate-500 mt-6">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+              Create one
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

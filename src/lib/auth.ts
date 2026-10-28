@@ -74,6 +74,17 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Check status
+        if (user.status === "PENDING_VERIFICATION") {
+          await auditLog({
+            action: "USER_LOGIN_FAILED",
+            actorId: user.id,
+            actorEmail: user.email,
+            outcome: "FAILURE",
+            metadata: { reason: "pending_verification" },
+            ipAddress: ip,
+          });
+          throw new Error("PendingVerification");
+        }
         if (user.status !== "ACTIVE") {
           await auditLog({
             action: "USER_LOGIN_FAILED",

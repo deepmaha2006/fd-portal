@@ -40,21 +40,34 @@ export function LoginForm() {
     if (result?.error) {
       if (result.error === "AccountLocked") {
         setServerError("Your account has been temporarily locked due to too many failed attempts. Try again in 15 minutes.");
+      } else if (result.error === "PendingVerification") {
+        setServerError("Your account is pending verification by an administrator. You'll be notified once it's activated.");
       } else {
         setServerError("Invalid email or password. Please try again.");
       }
       return;
     }
 
-    const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+    // Determine redirect based on role from session
+    const sessionRes = await fetch("/api/auth/session");
+    const sessionData = await sessionRes.json();
+    const role = sessionData?.user?.role;
+    const defaultUrl = role === "CLIENT" ? "/portal" : "/dashboard";
+    const callbackUrl = searchParams.get("callbackUrl") ?? defaultUrl;
     router.push(callbackUrl);
     router.refresh();
   };
 
   const errorFromParams = searchParams.get("error");
+  const registeredParam = searchParams.get("registered");
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+      {registeredParam === "1" && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+          Account created! Please wait for admin verification before signing in.
+        </div>
+      )}
       {(serverError || errorFromParams) && (
         <div role="alert" className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
           {serverError ?? "Authentication failed. Please try again."}

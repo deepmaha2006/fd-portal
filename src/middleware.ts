@@ -1,16 +1,47 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import type { UserRole } from "@prisma/client";
 
 export default withAuth(
   function middleware(req) {
-    // Token is guaranteed present here (withAuth checked it)
+    const token = req.nextauth.token;
+    const pathname = req.nextUrl.pathname;
+    const role = token?.role as UserRole | undefined;
+
+    // CLIENT users trying to access admin dashboard → redirect to portal
+    if (pathname.startsWith("/dashboard") || pathname.startsWith("/deposits") ||
+        pathname.startsWith("/reports") || pathname.startsWith("/users") ||
+        pathname.startsWith("/settings") || pathname.startsWith("/audit-logs") ||
+        pathname.startsWith("/admin")) {
+      if (role === "CLIENT") {
+        return NextResponse.redirect(new URL("/portal", req.url));
+      }
+    }
+
+    // Non-CLIENT users trying to access portal → redirect to dashboard
+    if (pathname.startsWith("/portal")) {
+      if (role && role !== "CLIENT") {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+    }
+
     return NextResponse.next();
   },
   {
     callbacks: {
-      authorized({ token }) {
-        // Any authenticated user with a valid token may proceed;
-        // per-route permission checks happen in route handlers/pages.
+      authorized({ token, req }) {
+        const pathname = req.nextUrl.pathname;
+        // Public routes — no token required
+        if (
+          pathname === "/" ||
+          pathname.startsWith("/login") ||
+          pathname.startsWith("/register") ||
+          pathname.startsWith("/api/register") ||
+          pathname.startsWith("/_next") ||
+          pathname.startsWith("/favicon")
+        ) {
+          return true;
+        }
         return !!token;
       },
     },
@@ -19,16 +50,6 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/deposits/:path*",
-    "/reports/:path*",
-    "/users/:path*",
-    "/settings/:path*",
-    "/audit-logs/:path*",
-    "/api/deposits/:path*",
-    "/api/dashboard/:path*",
-    "/api/users/:path*",
-    "/api/audit-logs/:path*",
-    "/api/documents/:path*",
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

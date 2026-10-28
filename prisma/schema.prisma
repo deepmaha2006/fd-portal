@@ -20,6 +20,25 @@ enum UserRole {
   FINANCE_OFFICER
   AUDITOR
   VIEWER
+  CLIENT
+}
+
+enum PaymentRequestType {
+  NEW_DEPOSIT
+  RENEWAL
+  RELEASE
+  PAYMENT_QUERY
+  OTHER
+}
+
+enum PaymentRequestStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PROCESSING
+  COMPLETED
+  CANCELLED
 }
 
 enum UserStatus {
@@ -167,6 +186,8 @@ model User {
   auditLogs            AuditLog[]
   passwordResetTokens  PasswordResetToken[]
   notificationPrefs    NotificationPreference[]
+  paymentRequests      PaymentRequest[]  @relation("ClientRequests")
+  reviewedRequests     PaymentRequest[]  @relation("ReviewedRequests")
 
   @@index([status])
   @@index([role])
@@ -476,6 +497,52 @@ model AuditLog {
   @@index([targetId])
   @@index([occurredAt])
   @@index([actorEmail])
+}
+
+// ─── Payment Requests (Client-facing) ────────────────────────────────────────
+
+model PaymentRequest {
+  id            String               @id @default(cuid()) @map("_id")
+  requestNumber String               @unique
+  clientId      String
+  client        User                 @relation("ClientRequests", fields: [clientId], references: [id])
+  type          PaymentRequestType
+  status        PaymentRequestStatus @default(SUBMITTED)
+
+  amount        Float?
+  currency      String               @default("INR")
+  bankName      String?
+  accountNumber String?
+  description   String
+  urgency       String               @default("NORMAL")
+
+  reviewedById  String?
+  reviewedBy    User?                @relation("ReviewedRequests", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  reviewNotes   String?
+
+  depositId     String?
+
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  statusHistory PaymentRequestHistory[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PaymentRequestHistory {
+  id        String               @id @default(cuid()) @map("_id")
+  requestId String
+  request   PaymentRequest       @relation(fields: [requestId], references: [id])
+  status    PaymentRequestStatus
+  notes     String?
+  actorId   String?
+  createdAt DateTime             @default(now())
+
+  @@index([requestId])
 }
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
