@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { Building2 } from "lucide-react";
+import { Suspense } from "react";
+import { Building2, Loader2 } from "lucide-react";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 
 export const metadata: Metadata = { title: "Reset Password" };
@@ -24,7 +25,9 @@ export default function ResetPasswordPage() {
             </p>
           </div>
 
-          <ResetPasswordForm />
+          <Suspense fallback={<div className="flex justify-center py-6"><Loader2 className="animate-spin text-slate-400" size={20} /></div>}>
+            <ResetPasswordForm />
+          </Suspense>
 
           <p className="text-center text-sm text-slate-500 mt-6">
             <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
