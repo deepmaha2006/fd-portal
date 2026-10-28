@@ -71,7 +71,7 @@ Legend: ✅ Implemented + tested | ⚠️ Partial / manual step needed | ❌ Not
 | Account lockout after 5 failed logins | ✅ | Pre-existing |
 | PENDING_VERIFICATION blocks login | ✅ | Pre-existing |
 | 30-min idle timeout for admin roles | ✅ | `adminIdleExpiry` in JWT at sign-in; session callback invalidates after 30 min |
-| Re-authentication for sensitive actions | ⚠️ | Not yet implemented |
+| Re-authentication for sensitive actions | ✅ | `src/lib/reauth.ts` — requireRecentAuth() on second-approve + role-change |
 | Client registration email verification | ⚠️ | `emailVerified` field exists; verification email not yet wired |
 | KYC review only from PENDING status | ✅ | `/api/kyc/[id]/review` checks status |
 | KYC reviewer ≠ account owner | ✅ | Check in KYC review route |
@@ -92,12 +92,12 @@ Legend: ✅ Implemented + tested | ⚠️ Partial / manual step needed | ❌ Not
 | Referrer-Policy | ✅ | `next.config.mjs` |
 | Permissions-Policy | ✅ | `next.config.mjs` |
 | CSRF (Origin check) helper | ✅ | `src/lib/csrf.ts` — wired into register, KYC, users, second-approve |
-| File upload: MIME allowlist | ⚠️ | `secure-file.ts` exists; magic-byte check needs verification |
+| File upload: MIME allowlist | ✅ | TIFF + WEBP signatures added; null fallthrough now rejects unknown formats |
 | File upload: random storage names | ✅ | Pre-existing |
 | File upload: signed download URLs | ⚠️ | Not yet short-lived signed URLs |
 | Audit log 403 denials | ✅ | `PERMISSION_DENIED` action in escalation paths |
 | Audit log all login/logout/MFA events | ✅ | `auth.ts` |
-| Dashboard alert for 5+ denials/user/hour | ❌ | Not implemented |
+| Dashboard alert for 5+ denials/user/hour | ✅ | `GET /api/admin/security-alerts` — application-level grouping, SUPER_ADMIN+ADMIN only |
 | Encrypt PAN/account numbers at rest | ✅ | `src/lib/field-encrypt.ts` — AES-256-GCM; wired into deposit create/patch/GET |
 
 ## 8. UI
