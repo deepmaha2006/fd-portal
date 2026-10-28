@@ -6,20 +6,29 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/audit";
-import { requirePermission, getUserId, UnauthorizedError } from "@/lib/permissions";
+import {
+  requirePermission,
+  getUserId,
+  getUserRole,
+  canManageRole,
+  UnauthorizedError,
+  ForbiddenError,
+} from "@/lib/permissions";
 import { ok, created, handleApiError } from "@/lib/api-response";
+import type { UserRole } from "@prisma/client";
+
+const MANAGEABLE_ROLES = [
+  "ADMIN",
+  "FINANCE_MANAGER",
+  "FINANCE_OFFICER",
+  "AUDITOR",
+  "VIEWER",
+] as const;
 
 const CreateUserSchema = z.object({
   email: z.string().email().max(254).toLowerCase(),
   name: z.string().min(2).max(100),
-  role: z.enum([
-    "SUPER_ADMIN",
-    "ADMIN",
-    "FINANCE_MANAGER",
-    "FINANCE_OFFICER",
-    "AUDITOR",
-    "VIEWER",
-  ]),
+  role: z.enum(MANAGEABLE_ROLES),
   department: z.string().max(100).optional(),
   password: z
     .string()
@@ -69,12 +78,31 @@ export async function POST(req: NextRequest) {
     requirePermission(session, "user:create");
 
     const actorId = getUserId(session)!;
+    const actorRole = getUserRole(session)!;
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
     const body = await req.json();
     const data = CreateUserSchema.parse(body);
 
-    // Check for existing email
+    // ── Privilege escalation check ─────────────────────────────────────────────
+    // Actor may only create users in roles strictly below their own level.
+    if (!canManageRole(actorRole, data.role as UserRole)) {
+      await auditLog({
+        action: "PERMISSION_DENIED",
+        actorId,
+        outcome: "FAILURE",
+        ipAddress: ip,
+        metadata: {
+          reason: "privilege_escalation_attempt",
+          actorRole,
+          targetRole: data.role,
+        },
+      });
+      throw new ForbiddenError(
+        `You cannot create users with role ${data.role}: insufficient privilege`
+      );
+    }
+
     const existing = await prisma.user.findUnique({
       where: { email: data.email },
     });

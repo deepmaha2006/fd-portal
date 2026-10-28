@@ -9,7 +9,7 @@ export function calculateSimpleInterest(
   annualRatePct: number,
   days: number
 ): number {
-  return Math.round((principal * annualRatePct * days) / 365 / 100);
+  return (principal * annualRatePct * days) / 36500;
 }
 
 export function calculateMaturityAmount(
@@ -79,7 +79,10 @@ export function getMaturityUrgency(maturityDate: Date | null): MaturityUrgency {
   if (!maturityDate) return "na";
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const days = differenceInDays(maturityDate, today);
+  // Normalize both to midnight so a "past" date is reliably negative
+  const matDate = new Date(maturityDate.getTime());
+  matDate.setHours(0, 0, 0, 0);
+  const days = differenceInDays(matDate, today);
   if (days < 0) return "overdue";
   if (days <= 7) return "critical";
   if (days <= 15) return "warning";
