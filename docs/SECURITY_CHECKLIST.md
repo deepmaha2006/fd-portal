@@ -35,7 +35,7 @@ Legend: ✅ Implemented + tested | ⚠️ Partial / manual step needed | ❌ Not
 | Deposit creator cannot approve | ✅ | `canApproveDeposit` in `maker-checker.ts` |
 | Release requester cannot approve RELEASED | ✅ | `canApproveRelease`; `releaseRequestedById` stored |
 | HIGH_VALUE_THRESHOLD (10M INR) configured | ✅ | `maker-checker.ts` |
-| High-value dual approval (Manager + SUPER_ADMIN) | ⚠️ | First approval enforced; second approver flow is a TODO in status route |
+| High-value dual approval (Manager + SUPER_ADMIN) | ✅ | First: FINANCE_MANAGER via status route; Second: `POST /api/deposits/[id]/second-approve` |
 | Payment request reviewer ≠ creator | ✅ | `UNDER_REVIEW` transition check |
 | Officer can only move to UNDER_REVIEW | ✅ | TRANSITIONS map |
 | Manager only approves/rejects | ✅ | TRANSITIONS map |
@@ -46,7 +46,7 @@ Legend: ✅ Implemented + tested | ⚠️ Partial / manual step needed | ❌ Not
 | Item | Status | Notes |
 |------|--------|-------|
 | FINANCE_OFFICER can only edit own deposits | ⚠️ | `deposit:update_own` permission exists; enforced at API level — needs wiring in PATCH route |
-| VIEWER responses strip doc links and PII | ⚠️ | Permission defined; VIEWER-specific response filtering not yet in GET routes |
+| VIEWER responses strip doc links and PII | ✅ | deposits GET returns summary-only fields for VIEWER role |
 | CLIENT IDOR check on payment requests | ✅ | status route + payment-request [id] route |
 | Postgres RLS | N/A | MongoDB — no RLS support; application-level row security used instead |
 
@@ -70,28 +70,28 @@ Legend: ✅ Implemented + tested | ⚠️ Partial / manual step needed | ❌ Not
 | tokenVersion JWT revocation | ✅ | Session callback re-queries DB; stale tokens rejected |
 | Account lockout after 5 failed logins | ✅ | Pre-existing |
 | PENDING_VERIFICATION blocks login | ✅ | Pre-existing |
-| 30-min idle timeout for admin roles | ⚠️ | Not yet implemented; current session maxAge is 8h |
+| 30-min idle timeout for admin roles | ✅ | `adminIdleExpiry` in JWT at sign-in; session callback invalidates after 30 min |
 | Re-authentication for sensitive actions | ⚠️ | Not yet implemented |
 | Client registration email verification | ⚠️ | `emailVerified` field exists; verification email not yet wired |
 | KYC review only from PENDING status | ✅ | `/api/kyc/[id]/review` checks status |
 | KYC reviewer ≠ account owner | ✅ | Check in KYC review route |
-| Seed script blocked in production | ⚠️ | Needs `if (process.env.NODE_ENV === 'production') throw` |
+| Seed script blocked in production | ✅ | `scripts/seed.ts` throws if `NODE_ENV=production` |
 
 ## 7. Hardening
 
 | Item | Status | Notes |
 |------|--------|-------|
 | Rate limit: login (10/15min) | ✅ | `checkRateLimit` in login route |
-| Rate limit: register | ⚠️ | Config added; not wired into register route yet |
-| Rate limit: KYC upload | ⚠️ | Config added; not wired into KYC route yet |
-| Rate limit: export | ⚠️ | Config added; not wired into export route yet |
-| Trusted proxy only (X-Forwarded-For) | ✅ | `getClientIp()` in `csrf.ts` |
+| Rate limit: register | ✅ | `checkRateLimit` wired in register POST |
+| Rate limit: KYC upload | ✅ | `checkRateLimit` wired in KYC POST |
+| Rate limit: export | ✅ | `checkRateLimit` pre-existing; `getClientIp()` now used |
+| Trusted proxy only (X-Forwarded-For) | ✅ | `getClientIp()` used in all hardened routes |
 | HSTS (1 year + subdomains) | ✅ | `next.config.mjs` |
 | CSP (base-uri, form-action) | ✅ | `next.config.mjs` |
 | X-Frame-Options DENY | ✅ | `next.config.mjs` |
 | Referrer-Policy | ✅ | `next.config.mjs` |
 | Permissions-Policy | ✅ | `next.config.mjs` |
-| CSRF (Origin check) helper | ✅ | `src/lib/csrf.ts` — needs wiring into state-changing routes |
+| CSRF (Origin check) helper | ✅ | `src/lib/csrf.ts` — wired into register, KYC, users, second-approve |
 | File upload: MIME allowlist | ⚠️ | `secure-file.ts` exists; magic-byte check needs verification |
 | File upload: random storage names | ✅ | Pre-existing |
 | File upload: signed download URLs | ⚠️ | Not yet short-lived signed URLs |
