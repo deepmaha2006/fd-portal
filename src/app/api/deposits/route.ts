@@ -18,6 +18,7 @@ import {
 } from "@/lib/api-response";
 import type { UserRole } from "@prisma/client";
 import { generateReferenceNumber } from "@/lib/deposit-utils";
+import { encryptField, decryptField } from "@/lib/field-encrypt";
 import type { DepositType, DepositStatus } from "@prisma/client";
 
 // ─── Input Validation Schemas ─────────────────────────────────────────────────
@@ -145,8 +146,16 @@ export async function GET(req: NextRequest) {
       prisma.deposit.count({ where }),
     ]);
 
-    const sanitized = isViewer
+    // Decrypt accountNumber on the way out for non-VIEWER roles
+    const decrypted = !isViewer
       ? deposits.map((d) => ({
+          ...d,
+          accountNumber: decryptField(d.accountNumber),
+        }))
+      : deposits;
+
+    const sanitized = isViewer
+      ? decrypted.map((d) => ({
           id: d.id,
           referenceNumber: d.referenceNumber,
           depositType: d.depositType,
@@ -160,7 +169,7 @@ export async function GET(req: NextRequest) {
           bank: d.bank,
           department: d.department,
         }))
-      : deposits;
+      : decrypted;
 
     return ok({
       deposits: sanitized,
@@ -212,7 +221,7 @@ export async function POST(req: NextRequest) {
           certificateNumber: data.certificateNumber,
           bankId: data.bankId,
           branchId: data.branchId,
-          accountNumber: data.accountNumber, // TODO: encrypt in production
+          accountNumber: data.accountNumber ? encryptField(data.accountNumber) : null,
           beneficiaryId: data.beneficiaryId,
           issuingOrganization: data.issuingOrganization,
           vendorReference: data.vendorReference,

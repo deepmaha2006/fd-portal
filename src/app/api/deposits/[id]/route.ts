@@ -9,8 +9,10 @@ import {
   requirePermission,
   getUserId,
   UnauthorizedError,
+  ForbiddenError,
 } from "@/lib/permissions";
 import { ok, noContent, handleApiError } from "@/lib/api-response";
+import { encryptField, decryptField } from "@/lib/field-encrypt";
 import { NextResponse } from "next/server";
 
 const UpdateDepositSchema = z.object({
@@ -87,7 +89,10 @@ export async function GET(
       targetId: deposit.id,
     });
 
-    return ok(deposit);
+    return ok({
+      ...deposit,
+      accountNumber: decryptField(deposit.accountNumber),
+    });
   } catch (err) {
     return handleApiError(err);
   }
@@ -105,11 +110,17 @@ export async function PATCH(
     requirePermission(session, "deposit:update");
 
     const actorId = getUserId(session)!;
+    const role = (session.user as any)?.role as string;
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
     const existing = await prisma.deposit.findUnique({ where: { id: params.id } });
     if (!existing) {
       return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    }
+
+    // Row-level access: FINANCE_OFFICER can only edit deposits they created
+    if (role === "FINANCE_OFFICER" && existing.createdById !== actorId) {
+      throw new ForbiddenError("FINANCE_OFFICER can only update deposits they created");
     }
 
     // Cannot update terminal deposits
@@ -127,6 +138,9 @@ export async function PATCH(
       where: { id: params.id },
       data: {
         ...data,
+        accountNumber: data.accountNumber !== undefined
+          ? data.accountNumber ? encryptField(data.accountNumber) : null
+          : undefined,
         issueDate: data.issueDate ? new Date(data.issueDate) : undefined,
         maturityDate: data.maturityDate !== undefined
           ? data.maturityDate ? new Date(data.maturityDate) : null
@@ -146,7 +160,10 @@ export async function PATCH(
       metadata: { updatedFields: Object.keys(data) },
     });
 
-    return ok(updated);
+    return ok({
+      ...updated,
+      accountNumber: decryptField(updated.accountNumber),
+    });
   } catch (err) {
     return handleApiError(err);
   }
