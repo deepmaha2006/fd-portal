@@ -19,6 +19,7 @@ export default async function PortalSettingsPage() {
         name: true,
         email: true,
         department: true,
+        phone: true,
         status: true,
         isKycVerified: true,
         createdAt: true,
@@ -103,7 +104,7 @@ export default async function PortalSettingsPage() {
           </div>
         </div>
         <div className="p-5">
-          <ProfileEdit name={user.name} department={user.department} email={user.email} />
+          <ProfileEdit name={user.name} department={user.department} email={user.email} phone={user.phone} />
         </div>
       </section>
 

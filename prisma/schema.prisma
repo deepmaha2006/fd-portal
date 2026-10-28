@@ -221,6 +221,7 @@ model User {
   isKycVerified        Boolean           @default(false)
   kycVerification      KycVerification?
   kycReviewed          KycVerification[] @relation("KycReviewer")
+  phone                String?
   // JWT revocation: bump this field on role change, deactivation, or password reset
   tokenVersion         Int               @default(0)
 

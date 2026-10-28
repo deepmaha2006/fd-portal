@@ -12,7 +12,7 @@ const Schema = z.object({
   amount: z.string().optional(),
   currency: z.string().default("INR"),
   bankName: z.string().max(200).optional().or(z.literal("")),
-  accountNumber: z.string().max(50).optional().or(z.literal("")),
+  accountNumber: z.string().regex(/^\d{9,18}$/, "Account number: 9–18 digits, numbers only").optional().or(z.literal("")),
   urgency: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).default("NORMAL"),
 });
 
@@ -274,14 +274,21 @@ export function PaymentRequestForm() {
           />
         </div>
         <div>
-          <label htmlFor="accountNumber" className="block text-sm font-semibold text-slate-700 mb-1">Account / FD number</label>
+          <label htmlFor="accountNumber" className="block text-sm font-semibold text-slate-700 mb-1">Bank Account Number</label>
           <input
             {...register("accountNumber")}
             id="accountNumber"
             type="text"
-            className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
-            placeholder="e.g. FD-2024-00123"
+            inputMode="numeric"
+            onInput={(e) => {
+              const t = e.currentTarget;
+              t.value = t.value.replace(/\D/g, "").slice(0, 18);
+            }}
+            className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+            placeholder="9–18 digits, numbers only"
+            maxLength={18}
           />
+          {errors.accountNumber && <p className="mt-1 text-xs text-red-600">{errors.accountNumber.message}</p>}
         </div>
       </div>
 
