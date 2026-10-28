@@ -47,6 +47,21 @@ export const env = {
     optionalEnv("RATE_LIMIT_LOGIN_WINDOW_SECONDS", "900"),
     10
   ),
+  RATE_LIMIT_REGISTER_MAX: parseInt(optionalEnv("RATE_LIMIT_REGISTER_MAX", "5"), 10),
+  RATE_LIMIT_REGISTER_WINDOW_SECONDS: parseInt(
+    optionalEnv("RATE_LIMIT_REGISTER_WINDOW_SECONDS", "3600"),
+    10
+  ),
+  RATE_LIMIT_KYC_MAX: parseInt(optionalEnv("RATE_LIMIT_KYC_MAX", "10"), 10),
+  RATE_LIMIT_KYC_WINDOW_SECONDS: parseInt(
+    optionalEnv("RATE_LIMIT_KYC_WINDOW_SECONDS", "3600"),
+    10
+  ),
+  RATE_LIMIT_EXPORT_MAX: parseInt(optionalEnv("RATE_LIMIT_EXPORT_MAX", "5"), 10),
+  RATE_LIMIT_EXPORT_WINDOW_SECONDS: parseInt(
+    optionalEnv("RATE_LIMIT_EXPORT_WINDOW_SECONDS", "3600"),
+    10
+  ),
 
   // MFA
   MFA_ISSUER: optionalEnv("MFA_ISSUER", "FD Portal"),
@@ -55,10 +70,13 @@ export const env = {
   // Jobs
   REMINDER_CRON: optionalEnv("REMINDER_CRON", "0 6 * * *"),
 
-  // CORS
+  // CORS / CSRF
   ALLOWED_ORIGINS: optionalEnv("ALLOWED_ORIGINS", "http://localhost:3000")
     .split(",")
     .map((o) => o.trim()),
+
+  // Proxy: when set, X-Forwarded-For is trusted for IP extraction
+  TRUSTED_PROXY: optionalEnv("TRUSTED_PROXY"),
 
   isProduction: () => optionalEnv("APP_ENV", "development") === "production",
   isDevelopment: () => optionalEnv("APP_ENV", "development") === "development",
