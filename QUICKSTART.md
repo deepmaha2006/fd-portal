@@ -1,65 +1,24 @@
 # FD Portal — Quick Start Guide
 
-## Option A: Docker (recommended — no setup required)
+**Live deployment:** https://fd-portal-kohl.vercel.app
 
-> Works on any machine worldwide. Requires only Docker Desktop.
-
-**Step 1 — Install Docker Desktop**
-- Windows/Mac: https://www.docker.com/products/docker-desktop/
-- Linux: `curl -fsSL https://get.docker.com | sh`
-
-**Step 2 — Start everything with one command**
+## Local Development
 
 ```bash
-docker compose up --build
-```
-
-This will:
-1. Start a PostgreSQL 15 database (password: `fdportal123`)
-2. Run all database migrations automatically
-3. Seed demo data (banks, users, sample deposits)
-4. Start the Next.js app on http://localhost:3000
-
-**Default login credentials (seeded automatically):**
-
-| Role            | Email                    | Password               |
-|-----------------|--------------------------|------------------------|
-| Super Admin     | admin@fdportal.dev       | Admin@Password123!     |
-| Finance Manager | manager@fdportal.dev     | Manager@Password123!   |
-| Finance Officer | officer@fdportal.dev     | Officer@Password123!   |
-
-**Stop the app:**
-```bash
-docker compose down        # keeps database data
-docker compose down -v     # also deletes database data
-```
-
----
-
-## Option B: Local development (requires PostgreSQL)
-
-### If you don't know your PostgreSQL password
-
-Run this **as Administrator** in PowerShell (resets postgres password to `fdportal123`):
-
-```powershell
-.\scripts\reset-postgres-password.ps1
-```
-
-### Setup steps
-
-```powershell
 # 1. Install dependencies
 npm install
 
-# 2. Create the database (you will be prompted for password if reset didn't run)
-.\scripts\setup-db.ps1
+# 2. Configure environment
+cp .env.example .env
+# Edit .env — set DATABASE_URL (MongoDB Atlas), NEXTAUTH_SECRET, NEXTAUTH_URL
 
-# 3. Run migrations and seed
-npm run db:migrate:dev
-npm run db:seed
+# 3. Push Prisma schema to MongoDB
+npx prisma db push
 
-# 4. Start the development server
+# 4. Seed all 7 RBAC users + sample deposits
+npx tsx scripts/seed.ts
+
+# 5. Start dev server
 npm run dev
 ```
 
@@ -67,33 +26,52 @@ App runs at http://localhost:3000
 
 ---
 
-## Option C: Production deployment
+## Login Credentials (development instance)
 
-### Vercel + Neon (free tier, worldwide)
+| Role | Email | Password |
+|------|-------|----------|
+| SUPER_ADMIN | admin@fdportal.dev | Admin@FDP2026! |
+| ADMIN | sysadmin@fdportal.dev | Sysadmin@FDP2026! |
+| FINANCE_MANAGER | finmanager@fdportal.dev | FinMgr@FDP2026! |
+| FINANCE_OFFICER | finofficer@fdportal.dev | FinOff@FDP2026! |
+| AUDITOR | auditor@fdportal.dev | Auditor@FDP2026! |
+| VIEWER | viewer@fdportal.dev | Viewer@FDP2026! |
+| CLIENT | client@fdportal.dev | Client@FDP2026! |
 
-1. Create a free Neon database at https://neon.tech → copy the connection string
-2. Push code to GitHub
-3. Import project at https://vercel.com/new
-4. Set environment variables in Vercel dashboard:
-   - `DATABASE_URL` = your Neon connection string
-   - `NEXTAUTH_SECRET` = run `openssl rand -base64 32` to generate
-   - `NEXTAUTH_URL` = your Vercel app URL (e.g. `https://fdportal.vercel.app`)
-5. Deploy — migrations run automatically on first request
-
-### Railway (one-click, includes PostgreSQL)
-
-1. Create account at https://railway.app
-2. Click "New Project" → "Deploy from GitHub repo"
-3. Add a PostgreSQL plugin
-4. Set `NEXTAUTH_SECRET` and `NEXTAUTH_URL` in Variables tab
-5. Deploy
+- **SUPER_ADMIN / ADMIN / FINANCE_MANAGER / FINANCE_OFFICER / AUDITOR / VIEWER** → sign in at `/login`, land at `/dashboard`
+- **CLIENT** → sign in at `/login`, land at `/portal`
 
 ---
 
-## Changing the production secret
+## Resetting Users
 
-Generate a secure secret:
+To wipe all existing users and re-create canonical accounts:
+
+```bash
+npx tsx scripts/reset-users.ts
+```
+
+> ⚠️  Destructive — do not run against production.
+
+---
+
+## Production Deployment (Vercel)
+
+1. Push code to GitHub
+2. Import project at https://vercel.com/new
+3. Set environment variables in Vercel dashboard:
+   - `DATABASE_URL` — MongoDB Atlas connection string
+   - `NEXTAUTH_SECRET` — `openssl rand -base64 32`
+   - `NEXTAUTH_URL` — your Vercel URL (e.g. `https://fd-portal-kohl.vercel.app`)
+   - `APP_ENV` — `production`
+4. Deploy — Vercel runs `prisma generate && next build` automatically
+
+---
+
+## Generating a Secure Secret
+
 ```bash
 openssl rand -base64 32
 ```
-Set it as `NEXTAUTH_SECRET` in your environment. Never use the dev default in production.
+
+Set it as `NEXTAUTH_SECRET`. Never use the dev default in production.

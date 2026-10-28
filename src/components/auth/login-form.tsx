@@ -42,6 +42,10 @@ export function LoginForm() {
         setServerError("Your account has been temporarily locked due to too many failed attempts. Try again in 15 minutes.");
       } else if (result.error === "PendingVerification") {
         setServerError("Your account is pending verification by an administrator. You'll be notified once it's activated.");
+      } else if (result.error === "MfaRequired" || result.error === "MfaInvalid") {
+        setServerError("Two-factor authentication is required for your account. Please contact your administrator.");
+      } else if (result.error === "MfaNotConfigured") {
+        setServerError("Your account requires MFA setup. Please contact your administrator.");
       } else {
         setServerError("Invalid email or password. Please try again.");
       }

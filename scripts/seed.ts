@@ -59,51 +59,101 @@ async function main() {
   console.log("[seed] Beneficiaries created:", beneficiaries.length);
 
   // ── Users ─────────────────────────────────────────────────────────────────
-  const adminPassword = await hash("Admin@Password123!", 12);
-  const managerPassword = await hash("Manager@Password123!", 12);
-
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@fdportal.dev";
+  const adminEmail    = process.env.SEED_ADMIN_EMAIL    ?? "admin@fdportal.dev";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Admin@FDP2026!";
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: { hashedPassword: await hash(adminPassword, 12), status: "ACTIVE" },
     create: {
       email: adminEmail,
-      name: "System Administrator",
+      name: "Super Administrator",
       role: "SUPER_ADMIN",
-      hashedPassword: adminPassword,
+      hashedPassword: await hash(adminPassword, 12),
+      status: "ACTIVE",
+      department: "Finance",
+    },
+  });
+
+  const sysadmin = await prisma.user.upsert({
+    where: { email: "sysadmin@fdportal.dev" },
+    update: { hashedPassword: await hash("Sysadmin@FDP2026!", 12), status: "ACTIVE" },
+    create: {
+      email: "sysadmin@fdportal.dev",
+      name: "System Admin",
+      role: "ADMIN",
+      hashedPassword: await hash("Sysadmin@FDP2026!", 12),
       status: "ACTIVE",
       department: "Finance",
     },
   });
 
   const manager = await prisma.user.upsert({
-    where: { email: "manager@fdportal.dev" },
-    update: {},
+    where: { email: "finmanager@fdportal.dev" },
+    update: { hashedPassword: await hash("FinMgr@FDP2026!", 12), status: "ACTIVE" },
     create: {
-      email: "manager@fdportal.dev",
+      email: "finmanager@fdportal.dev",
       name: "Finance Manager",
       role: "FINANCE_MANAGER",
-      hashedPassword: managerPassword,
+      hashedPassword: await hash("FinMgr@FDP2026!", 12),
       status: "ACTIVE",
       department: "Finance",
     },
   });
 
   const officer = await prisma.user.upsert({
-    where: { email: "officer@fdportal.dev" },
-    update: {},
+    where: { email: "finofficer@fdportal.dev" },
+    update: { hashedPassword: await hash("FinOff@FDP2026!", 12), status: "ACTIVE" },
     create: {
-      email: "officer@fdportal.dev",
+      email: "finofficer@fdportal.dev",
       name: "Finance Officer",
       role: "FINANCE_OFFICER",
-      hashedPassword: await hash("Officer@Password123!", 12),
+      hashedPassword: await hash("FinOff@FDP2026!", 12),
       status: "ACTIVE",
       department: "Finance",
     },
   });
 
-  console.log("[seed] Users created: admin, manager, officer");
+  const auditor = await prisma.user.upsert({
+    where: { email: "auditor@fdportal.dev" },
+    update: { hashedPassword: await hash("Auditor@FDP2026!", 12), status: "ACTIVE" },
+    create: {
+      email: "auditor@fdportal.dev",
+      name: "Auditor",
+      role: "AUDITOR",
+      hashedPassword: await hash("Auditor@FDP2026!", 12),
+      status: "ACTIVE",
+      department: "Finance",
+    },
+  });
+
+  const viewer = await prisma.user.upsert({
+    where: { email: "viewer@fdportal.dev" },
+    update: { hashedPassword: await hash("Viewer@FDP2026!", 12), status: "ACTIVE" },
+    create: {
+      email: "viewer@fdportal.dev",
+      name: "Viewer",
+      role: "VIEWER",
+      hashedPassword: await hash("Viewer@FDP2026!", 12),
+      status: "ACTIVE",
+      department: "Finance",
+    },
+  });
+
+  const client = await prisma.user.upsert({
+    where: { email: "client@fdportal.dev" },
+    update: { hashedPassword: await hash("Client@FDP2026!", 12), status: "ACTIVE" },
+    create: {
+      email: "client@fdportal.dev",
+      name: "Demo Client",
+      role: "CLIENT",
+      hashedPassword: await hash("Client@FDP2026!", 12),
+      status: "ACTIVE",
+      department: "Finance",
+    },
+  });
+
+  console.log("[seed] Users created: super_admin, admin, finance_manager, finance_officer, auditor, viewer, client");
 
   // ── Reminder Config ───────────────────────────────────────────────────────
   const reminderDays = [90, 60, 30, 15, 7, 1, 0];
@@ -212,10 +262,14 @@ async function main() {
 
   console.log("[seed] Sample deposits created:", deposits.length);
   console.log("[seed] ──────────────────────────────────────────");
-  console.log("[seed] Development credentials:");
-  console.log(`[seed]   Admin:   ${adminEmail} / Admin@Password123!`);
-  console.log("[seed]   Manager: manager@fdportal.dev / Manager@Password123!");
-  console.log("[seed]   Officer: officer@fdportal.dev / Officer@Password123!");
+  console.log("[seed] Portal credentials (development only):");
+  console.log(`[seed]   SUPER_ADMIN:     ${adminEmail} / ${adminPassword}`);
+  console.log("[seed]   ADMIN:          sysadmin@fdportal.dev / Sysadmin@FDP2026!");
+  console.log("[seed]   FINANCE_MANAGER: finmanager@fdportal.dev / FinMgr@FDP2026!");
+  console.log("[seed]   FINANCE_OFFICER: finofficer@fdportal.dev / FinOff@FDP2026!");
+  console.log("[seed]   AUDITOR:        auditor@fdportal.dev / Auditor@FDP2026!");
+  console.log("[seed]   VIEWER:         viewer@fdportal.dev / Viewer@FDP2026!");
+  console.log("[seed]   CLIENT:         client@fdportal.dev / Client@FDP2026!");
   console.log("[seed] ⚠️  NEVER use these credentials in production.");
   console.log("[seed] Seed complete.");
 }

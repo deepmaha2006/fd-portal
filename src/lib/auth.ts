@@ -7,9 +7,6 @@ import { auditLog } from "@/lib/audit";
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 15;
 
-// Roles that require TOTP MFA to be enforced
-const MFA_REQUIRED_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"]);
-
 // Roles that get a 30-minute idle timeout instead of the global 8-hour maxAge
 const ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const ADMIN_IDLE_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"]);
@@ -138,45 +135,38 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // MFA check: required for SUPER_ADMIN, ADMIN, FINANCE_MANAGER; optional for others
-        if (user.mfaEnabled || MFA_REQUIRED_ROLES.has(user.role)) {
-          if (!user.mfaSecret) {
-            // MFA required but not yet configured — block login for mandatory-MFA roles
-            if (MFA_REQUIRED_ROLES.has(user.role)) {
-              throw new Error("MfaNotConfigured");
-            }
-          } else {
-            if (!credentials.mfaCode) {
-              throw new Error("MfaRequired");
-            }
+        // MFA check: only enforced when the user has explicitly configured a TOTP secret
+        if (user.mfaEnabled && user.mfaSecret) {
+          if (!credentials.mfaCode) {
+            throw new Error("MfaRequired");
+          }
 
-            const { TOTP } = await import("otpauth");
-            const totp = new TOTP({
-              issuer: process.env.MFA_ISSUER ?? "FD Portal",
-              label: user.email,
-              secret: user.mfaSecret,
-            });
+          const { TOTP } = await import("otpauth");
+          const totp = new TOTP({
+            issuer: process.env.MFA_ISSUER ?? "FD Portal",
+            label: user.email,
+            secret: user.mfaSecret,
+          });
 
-            const delta = totp.validate({ token: credentials.mfaCode, window: 1 });
-            if (delta === null) {
-              await auditLog({
-                action: "MFA_CHALLENGE_FAILED",
-                actorId: user.id,
-                actorEmail: user.email,
-                outcome: "FAILURE",
-                ipAddress: ip,
-              });
-              throw new Error("MfaInvalid");
-            }
-
+          const delta = totp.validate({ token: credentials.mfaCode, window: 1 });
+          if (delta === null) {
             await auditLog({
-              action: "MFA_CHALLENGE_PASSED",
+              action: "MFA_CHALLENGE_FAILED",
               actorId: user.id,
               actorEmail: user.email,
-              outcome: "SUCCESS",
+              outcome: "FAILURE",
               ipAddress: ip,
             });
+            throw new Error("MfaInvalid");
           }
+
+          await auditLog({
+            action: "MFA_CHALLENGE_PASSED",
+            actorId: user.id,
+            actorEmail: user.email,
+            outcome: "SUCCESS",
+            ipAddress: ip,
+          });
         }
 
         // Success — reset fail count
