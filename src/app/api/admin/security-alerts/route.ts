@@ -28,11 +28,11 @@ export async function GET(req: NextRequest) {
     const events = await prisma.auditLog.findMany({
       where: {
         action: "PERMISSION_DENIED",
-        timestamp: { gte: since },
+        occurredAt: { gte: since },
         actorId: { not: null },
       },
-      orderBy: { timestamp: "desc" },
-      select: { actorId: true, ipAddress: true, metadata: true, timestamp: true },
+      orderBy: { occurredAt: "desc" },
+      select: { actorId: true, ipAddress: true, metadata: true, occurredAt: true },
       take: 10000,
     });
 
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
         actorId: id,
         count: countMap.get(id)!,
         user: userMap.get(id) ?? null,
-        lastOccurredAt: lastEvent?.timestamp ?? null,
+        lastOccurredAt: lastEvent?.occurredAt ?? null,
         lastIp: lastEvent?.ipAddress ?? null,
         lastMetadata: lastEvent?.metadata ?? null,
       };
