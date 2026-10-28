@@ -190,6 +190,8 @@ model User {
   id                   String     @id @default(cuid()) @map("_id")
   email                String     @unique
   emailVerified        DateTime?
+  emailVerificationToken       String?
+  emailVerificationTokenExpiry DateTime?
   name                 String
   hashedPassword       String?
   role                 UserRole   @default(FINANCE_OFFICER)

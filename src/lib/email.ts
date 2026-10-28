@@ -56,6 +56,38 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 }
 
+export function verificationEmailHtml(params: {
+  name: string;
+  verifyUrl: string;
+}): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify your email — FD Portal</title></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+  <div style="background: #1e40af; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0; font-size: 20px;">FD Portal — Email Verification</h1>
+  </div>
+  <div style="border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
+    <p>Hello ${params.name},</p>
+    <p>Thank you for registering. Please verify your email address by clicking the button below.
+       This link expires in <strong>24 hours</strong>.</p>
+    <p style="margin: 24px 0;">
+      <a href="${params.verifyUrl}"
+         style="background: #1e40af; color: white; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-weight: bold;">
+        Verify Email Address
+      </a>
+    </p>
+    <p style="color: #64748b; font-size: 12px;">
+      If you did not create an account, you can safely ignore this email.<br>
+      Link: <a href="${params.verifyUrl}" style="color: #1e40af;">${params.verifyUrl}</a>
+    </p>
+  </div>
+</body>
+</html>`;
+}
+
 // ─── Email Templates ──────────────────────────────────────────────────────────
 
 export function reminderEmailHtml(params: {

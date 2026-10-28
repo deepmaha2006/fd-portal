@@ -8,17 +8,37 @@ import { auditLog } from "@/lib/audit";
 import { requirePermission, getUserId, UnauthorizedError } from "@/lib/permissions";
 import { handleApiError } from "@/lib/api-response";
 import { resolveStoragePath } from "@/lib/secure-file";
+import { verifyDocumentToken } from "@/lib/signed-token";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) throw new UnauthorizedError();
-    requirePermission(session, "document:download");
+    // Allow either a valid session OR a valid short-lived signed token
+    const tokenParam = req.nextUrl.searchParams.get("token");
+    let actorId: string;
 
-    const actorId = getUserId(session)!;
+    if (tokenParam) {
+      const result = verifyDocumentToken(tokenParam);
+      if (!result.valid || !result.payload) {
+        return NextResponse.json(
+          { success: false, error: result.reason === "expired" ? "Download link has expired" : "Invalid download link" },
+          { status: 403 }
+        );
+      }
+      // Token's sub must match the document ID in the path
+      if (result.payload.sub !== params.id) {
+        return NextResponse.json({ success: false, error: "Invalid download link" }, { status: 403 });
+      }
+      actorId = result.payload.actorId;
+    } else {
+      const session = await getServerSession(authOptions);
+      if (!session) throw new UnauthorizedError();
+      requirePermission(session, "document:download");
+      actorId = getUserId(session)!;
+    }
+
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
     const document = await prisma.document.findUnique({

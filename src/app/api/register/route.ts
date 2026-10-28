@@ -8,6 +8,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { checkCsrf, getClientIp } from "@/lib/csrf";
 import { env } from "@/lib/env";
 import { handleApiError, tooManyRequests } from "@/lib/api-response";
+import { sendEmail, verificationEmailHtml } from "@/lib/email";
+import { randomBytes } from "crypto";
 
 const RegisterSchema = z.object({
   name: z.string().min(2).max(100).trim(),
@@ -58,6 +60,9 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await hash(data.password, 12);
     const deptInfo = [data.organization, data.department].filter(Boolean).join(" — ");
 
+    const verificationToken = randomBytes(32).toString("hex");
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     const user = await prisma.user.create({
       data: {
         name: data.name,
@@ -66,6 +71,8 @@ export async function POST(req: NextRequest) {
         role: "CLIENT",
         status: "ACTIVE",
         department: deptInfo,
+        emailVerificationToken: verificationToken,
+        emailVerificationTokenExpiry: tokenExpiry,
       },
     });
 
@@ -79,11 +86,21 @@ export async function POST(req: NextRequest) {
       metadata: { role: "CLIENT", selfRegistered: true },
     });
 
+    // Send verification email — fire-and-forget; don't block registration on email failures
+    const verifyUrl = `${env.APP_URL}/api/auth/verify-email?token=${verificationToken}`;
+    sendEmail({
+      to: user.email,
+      subject: "Verify your email — FD Portal",
+      html: verificationEmailHtml({ name: user.name, verifyUrl }),
+    }).catch((err) => {
+      console.warn("[register] Failed to send verification email:", err?.message);
+    });
+
     return NextResponse.json(
       {
         success: true,
         message:
-          "Account created. You can now log in. Please complete KYC verification in your portal settings to enable payment features.",
+          "Account created. Please check your email to verify your address. You can log in now and complete KYC verification in your portal settings.",
       },
       { status: 201 }
     );
