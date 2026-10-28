@@ -2,19 +2,33 @@ import { NextRequest } from "next/server";
 import { env } from "@/lib/env";
 
 /**
- * CSRF check via Origin header for all state-changing API routes.
- * Reject if Origin is present but does not match ALLOWED_ORIGINS.
- * Requests with no Origin header (e.g. same-site form POSTs, server-side calls)
- * are allowed — browsers always set Origin on cross-origin requests.
+ * CSRF check via Origin/Host comparison for state-changing API routes.
+ *
+ * Strategy (in priority order):
+ *  1. No Origin header → allow (same-site form POST or server-side call)
+ *  2. Origin host === request Host header → allow (same-origin fetch, works on
+ *     any Vercel URL without needing env vars configured)
+ *  3. Origin matches ALLOWED_ORIGINS env var → allow (explicit extra origins)
+ *  4. Otherwise → reject
  */
 export function checkCsrf(req: NextRequest): { ok: true } | { ok: false; reason: string } {
   const origin = req.headers.get("origin");
-  if (!origin) return { ok: true }; // no origin header → same-site or non-browser
+  if (!origin) return { ok: true };
+
+  // Same-host check: works automatically on every Vercel deployment URL
+  const requestHost = req.headers.get("host");
+  if (requestHost) {
+    try {
+      if (new URL(origin).host === requestHost) return { ok: true };
+    } catch {
+      // malformed origin — fall through to allowlist
+    }
+  }
 
   const allowed = env.ALLOWED_ORIGINS;
   if (allowed.some((o) => o === origin)) return { ok: true };
 
-  return { ok: false, reason: `Origin ${origin} not in allowed list` };
+  return { ok: false, reason: `Origin ${origin} not allowed` };
 }
 
 /**
