@@ -10,6 +10,10 @@ const LOCKOUT_DURATION_MINUTES = 15;
 // Roles that require TOTP MFA to be enforced
 const MFA_REQUIRED_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"]);
 
+// Roles that get a 30-minute idle timeout instead of the global 8-hour maxAge
+const ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const ADMIN_IDLE_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"]);
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
@@ -213,11 +217,23 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         // Store the tokenVersion at sign-in time so we can detect revocation
         token.tokenVersion = (user as any).tokenVersion ?? 0;
+        // For admin roles: stamp an idle expiry 30 minutes from sign-in
+        if (ADMIN_IDLE_ROLES.has((user as any).role)) {
+          token.adminIdleExpiry = Date.now() + ADMIN_IDLE_TIMEOUT_MS;
+        }
       }
       return token;
     },
     async session({ session, token }) {
       if (!token.id) return session;
+
+      // Admin idle timeout: invalidate if 30 minutes have passed since last token issue
+      if (
+        token.adminIdleExpiry !== undefined &&
+        Date.now() > (token.adminIdleExpiry as number)
+      ) {
+        return { ...session, user: undefined } as any;
+      }
 
       // Re-check tokenVersion on every session refresh to catch revoked tokens
       const dbUser = await prisma.user.findUnique({
