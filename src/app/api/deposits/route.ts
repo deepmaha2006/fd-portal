@@ -50,10 +50,10 @@ const CreateDepositSchema = z.object({
     "OTHER",
   ]),
   certificateNumber: z.string().max(100).optional(),
-  bankId: z.string().cuid().optional(),
-  branchId: z.string().cuid().optional(),
+  bankId: z.string().min(1).optional(),
+  branchId: z.string().min(1).optional(),
   accountNumber: z.string().max(50).optional(),
-  beneficiaryId: z.string().cuid().optional(),
+  beneficiaryId: z.string().min(1).optional(),
   issuingOrganization: z.string().max(200).optional(),
   vendorReference: z.string().max(200).optional(),
   contractNumber: z.string().max(100).optional(),
@@ -66,12 +66,18 @@ const CreateDepositSchema = z.object({
   issueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   maturityDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  departmentId: z.string().cuid().optional(),
-  ownerId: z.string().cuid().optional(),
+  departmentId: z.string().min(1).optional(),
+  ownerId: z.string().min(1).optional(),
   isRenewalEligible: z.boolean().default(true),
   notes: z.string().max(5000).optional(),
   tags: z.array(z.string().max(50)).max(20).default([]),
-});
+}).refine(
+  (d) => !d.maturityDate || d.maturityDate >= d.issueDate,
+  { message: "Maturity date must be on or after issue date", path: ["maturityDate"] }
+).refine(
+  (d) => !d.expiryDate || d.expiryDate >= d.issueDate,
+  { message: "Expiry date must be on or after issue date", path: ["expiryDate"] }
+);
 
 // ─── GET /api/deposits ────────────────────────────────────────────────────────
 

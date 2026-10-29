@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Lock, Info } from "lucide-react";
 
 const DEPOSIT_TYPES = [
   { value: "FIXED_DEPOSIT", label: "Fixed Deposit" },
@@ -21,28 +21,55 @@ interface Props {
   beneficiaries: Beneficiary[];
 }
 
+function addMonths(dateStr: string, months: number): string {
+  if (!dateStr || !months) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
 export function CreateDepositForm({ banks, beneficiaries }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const amountParam = searchParams.get("amount") ?? "";
+  const currencyParam = searchParams.get("currency") ?? "INR";
+  const bankNameParam = decodeURIComponent(searchParams.get("bankName") ?? "");
+  const accountNumberParam = decodeURIComponent(searchParams.get("accountNumber") ?? "");
+  const durationMonths = parseInt(searchParams.get("durationMonths") ?? "") || 0;
+  const notesParam = searchParams.get("notes") ?? "";
+
+  // Find bank by name (case-insensitive partial match)
+  const matchedBank = bankNameParam
+    ? banks.find(
+        (b) =>
+          b.name.toLowerCase() === bankNameParam.toLowerCase() ||
+          b.name.toLowerCase().includes(bankNameParam.toLowerCase()) ||
+          bankNameParam.toLowerCase().includes(b.name.toLowerCase())
+      )
+    : undefined;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const initialMaturity = durationMonths ? addMonths(today, durationMonths) : "";
+
   const [form, setForm] = useState({
     depositType: "FIXED_DEPOSIT",
     certificateNumber: "",
-    bankId: "",
+    bankId: matchedBank?.id ?? "",
     branchId: "",
-    accountNumber: "",
+    accountNumber: accountNumberParam,
     beneficiaryId: "",
     issuingOrganization: "",
     vendorReference: "",
     contractNumber: "",
-    principalAmount: searchParams.get("amount") ?? "",
-    currency: searchParams.get("currency") ?? "INR",
+    principalAmount: amountParam,
+    currency: currencyParam,
     interestRate: "",
-    issueDate: new Date().toISOString().slice(0, 10),
-    maturityDate: "",
-    expiryDate: "",
+    issueDate: today,
+    maturityDate: initialMaturity,
+    expiryDate: initialMaturity,
     isRenewalEligible: true,
-    notes: searchParams.get("notes") ?? "",
+    notes: notesParam,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -54,9 +81,57 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
     setForm((f) => ({ ...f, bankId, branchId: "" }));
   };
 
+  const handleIssueDateChange = (value: string) => {
+    setForm((f) => ({
+      ...f,
+      issueDate: value,
+      maturityDate: durationMonths ? addMonths(value, durationMonths) : f.maturityDate,
+      expiryDate: durationMonths ? addMonths(value, durationMonths) : f.expiryDate,
+    }));
+  };
+
+  const clientValidate = (): string | null => {
+    const amount = Number(form.principalAmount);
+    if (!form.principalAmount || isNaN(amount) || amount <= 0) {
+      return "Principal amount must be a positive number.";
+    }
+    if (amount > 999_999_999_999) {
+      return "Principal amount is too large.";
+    }
+    if (!form.issueDate) {
+      return "Issue date is required.";
+    }
+    if (form.maturityDate && form.maturityDate < form.issueDate) {
+      return "Maturity date cannot be before the issue date.";
+    }
+    if (form.expiryDate && form.expiryDate < form.issueDate) {
+      return "Expiry date cannot be before the issue date.";
+    }
+    if (form.expiryDate && form.maturityDate && form.expiryDate < form.maturityDate) {
+      return "Expiry date cannot be before the maturity date.";
+    }
+    if (durationMonths > 0) {
+      const maxDate = addMonths(form.issueDate, durationMonths);
+      if (form.maturityDate && form.maturityDate > maxDate) {
+        return `Maturity date cannot exceed the client-requested duration (${durationLabel}).`;
+      }
+    }
+    if (form.interestRate !== "" && (isNaN(Number(form.interestRate)) || Number(form.interestRate) < 0 || Number(form.interestRate) > 100)) {
+      return "Interest rate must be between 0 and 100.";
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    const clientErr = clientValidate();
+    if (clientErr) {
+      setError(clientErr);
+      return;
+    }
+
     setLoading(true);
 
     const payload: Record<string, unknown> = {
@@ -77,6 +152,7 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
       expiryDate: form.expiryDate || undefined,
       isRenewalEligible: form.isRenewalEligible,
       notes: form.notes || undefined,
+      tags: [],
     };
 
     try {
@@ -88,7 +164,14 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Failed to create deposit");
+        if (data.details) {
+          const msgs = Object.entries(data.details)
+            .map(([field, errs]) => `${field}: ${(errs as string[]).join(", ")}`)
+            .join(" | ");
+          setError(msgs || data.error || "Failed to create deposit");
+        } else {
+          setError(data.error ?? "Failed to create deposit");
+        }
         return;
       }
 
@@ -100,6 +183,14 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
       setLoading(false);
     }
   };
+
+  const inputCls = "w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const readonlyCls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-600 cursor-not-allowed";
+
+  const durationLabel =
+    durationMonths >= 12
+      ? `${durationMonths / 12} year${durationMonths > 12 ? "s" : ""} (${durationMonths} months)`
+      : `${durationMonths} month${durationMonths !== 1 ? "s" : ""}`;
 
   return (
     <div className="max-w-3xl">
@@ -114,24 +205,33 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
         <p className="text-slate-500 text-sm mt-1">Record a new deposit in the system.</p>
       </div>
 
+      {durationMonths > 0 && (
+        <div className="mb-4 flex items-start gap-2 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+          <Info size={15} className="mt-0.5 shrink-0" />
+          <span>
+            Client requested duration: <strong>{durationLabel}</strong>. Maturity and expiry dates are
+            auto-calculated from the issue date you select and cannot exceed this duration.
+          </span>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
         {error && (
-          <div className="mb-5 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div className="mb-5 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 whitespace-pre-line">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           {/* Deposit Type */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Deposit Type <span className="text-red-500">*</span>
             </label>
             <select
-              required
               value={form.depositType}
               onChange={(e) => setForm({ ...form, depositType: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className={inputCls + " bg-white"}
             >
               {DEPOSIT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -151,12 +251,13 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                 </label>
                 <input
                   type="number"
-                  required
                   step="0.01"
                   min="0.01"
+                  max="999999999999"
                   value={form.principalAmount}
                   onChange={(e) => setForm({ ...form, principalAmount: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter amount"
+                  className={inputCls}
                 />
               </div>
               <div>
@@ -164,10 +265,9 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                   Currency <span className="text-red-500">*</span>
                 </label>
                 <select
-                  required
                   value={form.currency}
                   onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className={inputCls + " bg-white"}
                 >
                   <option value="INR">INR</option>
                   <option value="USD">USD</option>
@@ -187,7 +287,7 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                   value={form.interestRate}
                   onChange={(e) => setForm({ ...form, interestRate: e.target.value })}
                   placeholder="e.g. 7.5"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={inputCls}
                 />
               </div>
               <div>
@@ -199,7 +299,7 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                   maxLength={100}
                   value={form.certificateNumber}
                   onChange={(e) => setForm({ ...form, certificateNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={inputCls}
                 />
               </div>
             </div>
@@ -217,33 +317,62 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                 </label>
                 <input
                   type="date"
-                  required
                   value={form.issueDate}
-                  onChange={(e) => setForm({ ...form, issueDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => handleIssueDateChange(e.target.value)}
+                  className={inputCls}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
                   Maturity Date
+                  {durationMonths > 0 && <Lock size={11} className="text-slate-400" />}
                 </label>
-                <input
-                  type="date"
-                  value={form.maturityDate}
-                  onChange={(e) => setForm({ ...form, maturityDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                {durationMonths > 0 ? (
+                  <input
+                    type="date"
+                    value={form.maturityDate}
+                    readOnly
+                    className={readonlyCls}
+                    title={`Locked: ${durationLabel} from issue date`}
+                  />
+                ) : (
+                  <input
+                    type="date"
+                    value={form.maturityDate}
+                    min={form.issueDate}
+                    onChange={(e) => setForm({ ...form, maturityDate: e.target.value })}
+                    className={inputCls}
+                  />
+                )}
+                {durationMonths > 0 && (
+                  <p className="text-xs text-slate-400 mt-1">Auto: issue date + {durationLabel}</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
                   Expiry Date
+                  {durationMonths > 0 && <Lock size={11} className="text-slate-400" />}
                 </label>
-                <input
-                  type="date"
-                  value={form.expiryDate}
-                  onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                {durationMonths > 0 ? (
+                  <input
+                    type="date"
+                    value={form.expiryDate}
+                    readOnly
+                    className={readonlyCls}
+                    title={`Locked: ${durationLabel} from issue date`}
+                  />
+                ) : (
+                  <input
+                    type="date"
+                    value={form.expiryDate}
+                    min={form.maturityDate || form.issueDate}
+                    onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
+                    className={inputCls}
+                  />
+                )}
+                {durationMonths > 0 && (
+                  <p className="text-xs text-slate-400 mt-1">Auto: issue date + {durationLabel}</p>
+                )}
               </div>
             </div>
           </fieldset>
@@ -253,13 +382,18 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
             <legend className="text-sm font-semibold text-slate-900 mb-3 pb-1 border-b border-slate-100 w-full">
               Bank & Parties
             </legend>
+            {bankNameParam && !matchedBank && (
+              <p className="text-xs text-amber-600 mb-2">
+                Client specified bank &quot;{bankNameParam}&quot; — select the matching entry below.
+              </p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Bank</label>
                 <select
                   value={form.bankId}
                   onChange={(e) => handleBankChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className={inputCls + " bg-white"}
                 >
                   <option value="">— Select bank —</option>
                   {banks.map((b) => (
@@ -273,7 +407,7 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                   value={form.branchId}
                   onChange={(e) => setForm({ ...form, branchId: e.target.value })}
                   disabled={!form.bankId || branches.length === 0}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:opacity-50"
+                  className={inputCls + " bg-white disabled:opacity-50"}
                 >
                   <option value="">— Select branch —</option>
                   {branches.map((br) => (
@@ -291,7 +425,7 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                   value={form.accountNumber}
                   onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
                   placeholder="Stored encrypted"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={inputCls}
                 />
               </div>
               <div>
@@ -299,7 +433,7 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                 <select
                   value={form.beneficiaryId}
                   onChange={(e) => setForm({ ...form, beneficiaryId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className={inputCls + " bg-white"}
                 >
                   <option value="">— Select beneficiary —</option>
                   {beneficiaries.map((b) => (
@@ -327,7 +461,7 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                   maxLength={200}
                   value={form.issuingOrganization}
                   onChange={(e) => setForm({ ...form, issuingOrganization: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={inputCls}
                 />
               </div>
               <div>
@@ -339,7 +473,7 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                   maxLength={100}
                   value={form.contractNumber}
                   onChange={(e) => setForm({ ...form, contractNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={inputCls}
                 />
               </div>
               <div>
@@ -351,7 +485,7 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                   maxLength={200}
                   value={form.vendorReference}
                   onChange={(e) => setForm({ ...form, vendorReference: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={inputCls}
                 />
               </div>
             </div>
@@ -366,7 +500,7 @@ export function CreateDepositForm({ banks, beneficiaries }: Props) {
                 maxLength={5000}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className={inputCls + " resize-none"}
               />
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
