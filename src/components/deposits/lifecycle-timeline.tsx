@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { formatDateTime } from "@/lib/deposit-utils";
 import type { DepositStatus } from "@prisma/client";
 
 interface Event {
@@ -28,7 +28,7 @@ export function LifecycleTimeline({ events }: { events: Event[] }) {
       <div className="relative">
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-100" />
         <div className="space-y-4">
-          {events.map((e, idx) => (
+          {events.map((e) => (
             <div key={e.id} className="flex items-start gap-4 relative">
               <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center flex-shrink-0 z-10 text-xs">
                 {STATUS_ICONS[e.toStatus] ?? "•"}
@@ -41,7 +41,7 @@ export function LifecycleTimeline({ events }: { events: Event[] }) {
                       : e.toStatus.replace(/_/g, " ")}
                   </p>
                   <time className="text-xs text-slate-400">
-                    {format(e.occurredAt, "dd MMM yyyy, HH:mm")}
+                    {formatDateTime(e.occurredAt)}
                   </time>
                 </div>
                 {e.notes && (

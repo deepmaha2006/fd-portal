@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { getUserId } from "@/lib/permissions";
 import { OrderTracking } from "@/components/ui/order-tracking";
 import { CancelRequestButton } from "@/components/user/cancel-request-button";
+import { formatDateTime, formatDate } from "@/lib/deposit-utils";
 import { ArrowLeft, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import type { PaymentRequestStatus } from "@prisma/client";
 
@@ -97,13 +98,7 @@ export default async function RequestDetailPage({
     return {
       name: statusLabels[stepStatus],
       timestamp: historyEntry
-        ? new Date(historyEntry.createdAt).toLocaleString("en-IN", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })
+        ? formatDateTime(historyEntry.createdAt)
         : currentStatusIdx < stepIdx
         ? "Pending"
         : "—",
@@ -133,7 +128,7 @@ export default async function RequestDetailPage({
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{request.requestNumber}</h1>
             <p className="text-slate-500 text-sm mt-1">
-              {typeLabels[request.type]} · Submitted {new Date(request.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+              {typeLabels[request.type]} · Submitted {formatDate(request.createdAt)}
             </p>
           </div>
           <span className={`text-sm font-semibold px-3 py-1.5 rounded-full ${statusColors[request.status]}`}>
@@ -224,4 +219,3 @@ export default async function RequestDetailPage({
     </div>
   );
 }
-

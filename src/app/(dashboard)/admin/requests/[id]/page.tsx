@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { hasPermission } from "@/lib/permissions";
 import { OrderTracking } from "@/components/ui/order-tracking";
 import { AdminRequestActions } from "@/components/admin/request-actions";
+import { formatDateTime, formatDate } from "@/lib/deposit-utils";
 import { ArrowLeft, PlusCircle } from "lucide-react";
 import type { UserRole, PaymentRequestStatus } from "@prisma/client";
 
@@ -69,7 +70,7 @@ export default async function AdminRequestDetailPage({ params }: { params: { id:
     return {
       name: statusLabels[stepStatus],
       timestamp: historyEntry
-        ? new Date(historyEntry.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+        ? formatDateTime(historyEntry.createdAt)
         : currentStatusIdx < stepIdx ? "Pending" : "—",
       isCompleted: isCompleted || isTerminalCompleted,
       isCurrent,
@@ -87,7 +88,7 @@ export default async function AdminRequestDetailPage({ params }: { params: { id:
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{request.requestNumber}</h1>
             <p className="text-slate-500 text-sm mt-1">
-              {typeLabels[request.type]} · From {request.client.name} · {new Date(request.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+              {typeLabels[request.type]} · From {request.client.name} · {formatDate(request.createdAt)}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -102,7 +103,14 @@ export default async function AdminRequestDetailPage({ params }: { params: { id:
                 <PlusCircle size={13} /> Create Deposit
               </Link>
             )}
-            {!isTerminal && <AdminRequestActions requestId={request.id} currentStatus={request.status} userRole={role} />}
+            {!isTerminal && (
+              <AdminRequestActions
+                requestId={request.id}
+                currentStatus={request.status}
+                userRole={role}
+                variant="detail"
+              />
+            )}
           </div>
         </div>
       </div>

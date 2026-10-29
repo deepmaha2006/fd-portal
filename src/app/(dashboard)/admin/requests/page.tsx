@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { hasPermission } from "@/lib/permissions";
 import type { UserRole } from "@prisma/client";
 import { AdminRequestActions } from "@/components/admin/request-actions";
+import { formatDate } from "@/lib/deposit-utils";
 import { InboxIcon } from "lucide-react";
 
 export const metadata: Metadata = { title: "Client Requests" };
@@ -135,7 +136,7 @@ export default async function AdminRequestsPage({
                       {r.amount ? `${r.currency} ${r.amount.toLocaleString("en-IN")}` : "—"}
                     </td>
                     <td className="px-5 py-4 text-slate-500">
-                      {new Date(r.createdAt).toLocaleDateString("en-IN")}
+                      {formatDate(r.createdAt)}
                     </td>
                     <td className="px-5 py-4">
                       <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColors[r.status]}`}>

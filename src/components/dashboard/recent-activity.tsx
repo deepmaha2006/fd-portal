@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { format } from "date-fns";
+import { formatDateTime } from "@/lib/deposit-utils";
 import { Activity } from "lucide-react";
 import type { DepositStatus } from "@prisma/client";
 
@@ -72,7 +72,7 @@ export function RecentActivity({ events }: { events: ActivityEvent[] }) {
                 dateTime={e.occurredAt.toISOString()}
                 className="text-xs text-slate-400 flex-shrink-0"
               >
-                {format(e.occurredAt, "dd MMM, HH:mm")}
+                {formatDateTime(e.occurredAt)}
               </time>
             </div>
           ))}

@@ -7,7 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { hasPermission } from "@/lib/permissions";
 import { auditLog } from "@/lib/audit";
-import { formatCurrency, getMaturityUrgency, daysUntilMaturity } from "@/lib/deposit-utils";
+import { formatCurrency, getMaturityUrgency, daysUntilMaturity, formatDateTime, formatDate } from "@/lib/deposit-utils";
 import { DepositStatusBadge } from "@/components/deposits/deposit-status-badge";
 import { DepositActions } from "@/components/deposits/deposit-actions";
 import { DocumentsList } from "@/components/deposits/documents-list";
@@ -227,12 +227,12 @@ export default async function DepositDetailPage({
       {/* Audit meta */}
       <div className="text-xs text-slate-400 flex gap-6">
         <span>
-          Created {format(deposit.createdAt, "dd MMM yyyy HH:mm")}
+          Created {formatDateTime(deposit.createdAt)}
           {deposit.createdBy ? ` by ${deposit.createdBy.name}` : ""}
         </span>
         {deposit.approvedBy && deposit.approvedAt && (
           <span>
-            Approved {format(deposit.approvedAt, "dd MMM yyyy")} by {deposit.approvedBy.name}
+            Approved {formatDate(deposit.approvedAt)} by {deposit.approvedBy.name}
           </span>
         )}
       </div>

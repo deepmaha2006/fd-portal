@@ -135,3 +135,38 @@ export function formatCurrency(
     minimumFractionDigits: 2,
   }).format(num);
 }
+
+// ─── Timezone-Aware Date & Time Formatting (IST Asia/Kolkata) ────────────────
+
+export function formatDateTime(
+  date: Date | string | number | null | undefined,
+  timeZone = "Asia/Kolkata"
+): string {
+  if (!date) return "—";
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleString("en-IN", {
+    timeZone,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+export function formatDate(
+  date: Date | string | number | null | undefined,
+  timeZone = "Asia/Kolkata"
+): string {
+  if (!date) return "—";
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-IN", {
+    timeZone,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}

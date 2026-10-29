@@ -28,23 +28,23 @@ const TRANSITIONS: Record<PaymentRequestStatus, Transition | undefined> = {
   },
   APPROVED: {
     allowedFrom: ["UNDER_REVIEW"],
-    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
+    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER"],
   },
   REJECTED: {
     allowedFrom: ["SUBMITTED", "UNDER_REVIEW"],
-    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
+    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER"],
   },
   PROCESSING: {
     allowedFrom: ["APPROVED"],
-    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
+    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER"],
   },
   COMPLETED: {
     allowedFrom: ["PROCESSING"],
-    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
+    requiredRoles: ["SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER"],
   },
   CANCELLED: {
     allowedFrom: ["SUBMITTED", "UNDER_REVIEW"],
-    requiredRoles: ["CLIENT", "SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER"],
+    requiredRoles: ["CLIENT", "SUPER_ADMIN", "ADMIN", "FINANCE_MANAGER", "FINANCE_OFFICER"],
   },
   SUBMITTED: undefined, // terminal in reverse; cannot transition TO SUBMITTED
 };
