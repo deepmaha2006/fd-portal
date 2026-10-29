@@ -39,3 +39,4 @@ yarn-error.log*
 prisma/generated/
 
 .vercel
+.env*

@@ -66,6 +66,7 @@ async function _getDashboardData() {
     prisma.deposit.groupBy({
       by: ["status"],
       _count: { status: true },
+      _sum: { principalAmount: true },
     }),
     prisma.deposit.findMany({
       where: {
@@ -101,7 +102,7 @@ async function _getDashboardData() {
     statusBreakdown: statusBreakdown.map((s) => ({
       status: s.status,
       count: s._count.status,
-      totalPrincipal: 0,
+      totalPrincipal: Number(s._sum?.principalAmount ?? 0),
     })),
     upcomingMaturities,
   };
